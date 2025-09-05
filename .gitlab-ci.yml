@@ -12,10 +12,11 @@ variables:
   CACHE_MODE: "max"
   SOURCE_PROJECT_ID: "4"
 
-rules:
-  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  - if: '$CI_COMMIT_BRANCH == "main"'
-  - when: never
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - when: never
 
 # Logs in once for all jobs
 before_script:
