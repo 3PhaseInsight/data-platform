@@ -1,0 +1,16 @@
+FROM apache/airflow:slim-2.11.0-python3.12
+
+USER root
+
+# Install system libraries
+RUN apt-get update && apt-get install -y libgeos-dev libgomp1 libpq-dev libpq5 gcc
+
+# Install any Python deps
+COPY requirements.txt /requirements.txt
+# Copy DAGs & source code
+COPY dags/ /opt/airflow/dags/
+
+USER airflow
+
+RUN pip install --no-cache-dir -r /requirements.txt
+

@@ -1,0 +1,64 @@
+stages: [build]
+
+# Build with Docker-in-Docker
+image: docker:27
+services:
+  - docker:dind
+
+variables:
+  DOCKER_TLS_CERTDIR: ""   # simplify auth with dind
+  DOCKER_BUILDKIT: "1"     # enables secrets and cache features
+  # Build cache retention per-image
+  CACHE_MODE: "max"
+  SOURCE_PROJECT_ID: "4"
+
+rules:
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  - if: '$CI_COMMIT_BRANCH == "main"'
+  - when: never
+
+# Logs in once for all jobs
+before_script:
+  - echo "Logging in to $CI_REGISTRY as $CI_REGISTRY_USER"
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  # Set up buildx (multi-platform capable builder, also needed for registry cache)
+  - docker buildx create --use --name ci-builder || docker buildx use ci-builder
+  - docker buildx inspect --bootstrap
+
+# Build & push all three images in parallel via a matrix
+build-and-push:
+  stage: build
+  parallel:
+    matrix:
+      - IMAGE_NAME: "airflow"
+        DOCKERFILE: "Dockerfile.airflow"
+      - IMAGE_NAME: "dask"
+        DOCKERFILE: "Dockerfile.dask"
+      - IMAGE_NAME: "timescaledb"
+        DOCKERFILE: "Dockerfile.timescaledb"
+  script:
+     - |
+       cat > pip.conf <<EOF
+       [global]
+       index-url = https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/api/v4/projects/${SOURCE_PROJECT_ID}/packages/pypi/simple
+       extra-index-url = https://pypi.org/simple
+       EOF
+     - echo "Building $IMAGE_NAME from $DOCKERFILE"
+     - >
+       docker buildx build
+       --pull
+       -f "$DOCKERFILE"
+       -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+       --cache-from "type=registry,ref=$CI_REGISTRY_IMAGE/$IMAGE_NAME:buildcache"
+       --cache-to "type=registry,ref=$CI_REGISTRY_IMAGE/$IMAGE_NAME:buildcache,mode=${CACHE_MODE}"
+       --secret id=pip_conf,src=pip.conf
+       --push
+       .
+
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+      allow_failure: false
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
