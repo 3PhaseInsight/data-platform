@@ -14,8 +14,7 @@ COPY dags/ /opt/airflow/dags/
 USER airflow
 ENV PATH="/home/airflow/.local/bin:${PATH}"
 
-# Use BuildKit secret for pip.conf, mount it where 'airflow' can read it.
-# NOTE the uid=50000 so the airflow user can read the secret.
 RUN --mount=type=secret,id=pip_conf,target=/home/airflow/.pip/pip.conf,uid=50000,gid=0,mode=0400 \
-    python -m pip install --user -U pip && \
-    pip install --user --no-cache-dir -r /opt/airflow/requirements.txt
+    python -m pip install -U pip && \
+    pip install --no-cache-dir -r /opt/airflow/requirements.txt
+
