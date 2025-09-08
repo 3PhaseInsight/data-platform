@@ -3,7 +3,10 @@ FROM apache/airflow:slim-2.11.0-python3.12
 USER root
 
 # Install system libraries
-RUN apt-get update && apt-get install -y libgeos-dev libgomp1 libpq-dev libpq5 gcc
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libgeos-dev libgomp1 libpq-dev libpq5 gcc libstdc++6 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install any Python deps
 COPY requirements.txt /requirements.txt
