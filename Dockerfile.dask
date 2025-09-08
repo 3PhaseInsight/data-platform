@@ -8,6 +8,12 @@ RUN apt-get update && apt-get install -y libgeos-dev libgomp1 libpq-dev libpq5 g
 && useradd -u 1000 -g dask -m dask
 
 COPY requirements.txt /requirements.txt
+
+# read private index creds from a secret, not baked into the image
+RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
+    python -m pip install -U pip && \
+    pip install --no-cache-dir -r requirements.txt
+
 RUN pip install --no-cache-dir -r /requirements.txt
 
 # Copy source code

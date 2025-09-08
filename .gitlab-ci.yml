@@ -30,9 +30,21 @@ workflow:
   stage: build
   extends: .before
   script:
+    - - |
+    - cat > pip.conf <<EOF
+      [ global ]
+      index-url = https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.3pi-dev.io/api/v4/projects/4/packages/pypi/simple
+      extra-index-url = https://pypi.org/simple
+      EOF
     - echo "Building $IMAGE_NAME from $DOCKERFILE"
-    - docker build --pull -f "$DOCKERFILE" -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA" .
-    - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+    - >
+      docker buildx build
+      --pull
+      -f "$DOCKERFILE"
+      --secret id=pip_conf,src=pip.conf
+      -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+      --push
+      .
   rules:
     # Merge Request pipeline → manual button
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
