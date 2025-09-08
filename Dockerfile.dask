@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y libgeos-dev libgomp1 libpq-dev libpq5 g
 COPY requirements.txt /requirements.txt
 
 # Copy source code
-COPY dags/dtu /app/dtu
+# COPY dags/dtu /app/dtu
 
 USER dask
 
 # read private index creds from a secret, not baked into the image
 RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
     python -m pip install -U pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r /requirements.txt

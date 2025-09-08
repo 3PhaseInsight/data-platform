@@ -16,5 +16,5 @@ ENV PATH="/home/airflow/.local/bin:${PATH}"
 
 RUN --mount=type=secret,id=pip_conf,target=/home/airflow/.pip/pip.conf,uid=50000,gid=0,mode=0400 \
     python -m pip install -U pip && \
-    pip install --no-cache-dir -r /opt/airflow/requirements.txt
+    pip install --no-cache-dir -r /requirements.txt
 
