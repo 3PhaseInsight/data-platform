@@ -4,42 +4,41 @@ image: docker:27
 services:
   - name: docker:27-dind
     alias: docker
-    command: ["--tls=false"]   # plaintext on 2375 (inside CI network)
+    command: ["--tls=false"]      # plain TCP inside CI network
 
 variables:
-  DOCKER_TLS_CERTDIR: ""       # disable TLS in dind
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_BUILDKIT: "1"         # BuildKit on (optional)
+  DOCKER_TLS_CERTDIR: ""          # disable TLS in DinD
+  DOCKER_HOST: tcp://docker:2375  # point docker CLI to the DinD service
+  DOCKER_BUILDKIT: "1"
 
-# Make pipelines only for MRs and pushes to main (keep if you already have this)
+# Create pipelines only for MRs and pushes to main
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "main"'
     - when: never
 
+# Shared login & sanity check
 .before:
   before_script:
-    - echo "Logging in to $CI_REGISTRY as $CI_REGISTRY_USER"
     - docker version
     - docker info || true
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
 
+# Template: build & push ONE image (only SHA tag)
 .build-one:
   stage: build
   extends: .before
-  # run dind in privileged mode (runner must allow privileged)
-  privileged: true
   script:
     - echo "Building $IMAGE_NAME from $DOCKERFILE"
     - docker build --pull -f "$DOCKERFILE" -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA" .
     - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
   rules:
-    # MR pipeline → manual
+    # Merge Request pipeline → manual button
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: manual
       allow_failure: false
-    # Push/merge to main → automatic
+    # Push/merge to main → run automatically
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
     - when: never
