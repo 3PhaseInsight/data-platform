@@ -1,0 +1,12 @@
+.idea
+.venv
+dtu-code
+dtu-code-clean
+dags/dtu
+api/node_modules
+dags/__pycache__
+data/csv/*
+logs
+volumes
+pip.conf
+.env

@@ -1,0 +1,266 @@
+services:
+
+  timescaledb:
+    image: 10.0.1.145:5000/3phi-platform/timescaledb:latest
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    networks:
+      - platform_network
+    restart: unless-stopped
+    mem_limit: 8G
+    cpus: 2.0
+
+  redis:
+    image: redis:7
+    container_name: redis
+    networks:
+      - platform_network
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    mem_limit: 256M
+    cpus: 0.25
+
+  airflow-webserver:
+    image: 10.0.1.145:5000/3phi-platform/airflow:latest
+    container_name: airflow-webserver
+    depends_on:
+      - airflow-scheduler
+      - airflow-worker
+      - redis
+      - timescaledb
+    restart: always
+    environment:
+      # Init Params:
+      - _AIRFLOW_DB_UPGRADE=True
+      - _AIRFLOW_WWW_USER_CREATE=True
+      - _AIRFLOW_WWW_USER_USERNAME=admin
+      - _AIRFLOW_WWW_USER_PASSWORD=admin
+      - _AIRFLOW_WWW_USER_FIRSTNAME=Firstname
+      - _AIRFLOW_WWW_USER_LASTNAME=Lastname
+      - _AIRFLOW_WWW_USER_EMAIL=admin@example.com
+      # other env variables
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
+      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
+      - AIRFLOW__CELERY__WORKER_CONCURRENCY=4
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW__WEBSERVER__SECRET_KEY}
+      # DB Params
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      # Connection Pools
+      - AIRFLOW__POOLS__DATABASE_POOL=5
+    ports:
+      - "8080:8080"
+    volumes:
+      - airflow_logs:/opt/airflow/logs
+    command: airflow webserver
+    networks:
+      - platform_network
+    mem_limit: 512M
+    cpus: 0.5
+
+  airflow-scheduler:
+    image: 10.0.1.145:5000/3phi-platform/airflow:latest
+    container_name: airflow-scheduler
+    restart: always
+    depends_on:
+      - redis
+      - timescaledb
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
+      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
+      - AIRFLOW__CELERY__WORKER_CONCURRENCY=4
+      - AIRFLOW__SCHEDULER__ZOMBIE_TASK_THRESHOLD=1200
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW__WEBSERVER__SECRET_KEY}
+      # DB Params
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      # Connection Pools
+      - AIRFLOW__POOLS__DATABASE_POOL=5
+    volumes:
+      - airflow_logs:/opt/airflow/logs
+      - csv_data:/opt/airflow/data
+    command: airflow scheduler
+    networks:
+      - platform_network
+    mem_limit: 512M
+    cpus: 0.5
+
+  airflow-worker:
+    image: 10.0.1.145:5000/3phi-platform/airflow:latest
+    container_name: airflow-worker
+    restart: always
+    depends_on:
+      - redis
+      - timescaledb
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
+      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
+      - AIRFLOW__CELERY__WORKER_CONCURRENCY=4
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW__WEBSERVER__SECRET_KEY}
+      # DB Params
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+    command: >
+      bash -c "airflow celery worker"
+    volumes:
+      - airflow_logs:/opt/airflow/logs
+      - csv_data:/opt/airflow/data
+    networks:
+      - platform_network
+    mem_limit: 4G
+    cpus: 1.0
+
+  dask-scheduler:
+    image: 10.0.1.145:5000/3phi-platform/dask:latest
+    container_name: dask-scheduler
+    command: dask-scheduler
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ENDPOINT_URL=http://minio:9000
+      # DB Params
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      # Volume settings
+      - DASK_TEMPORARY_DIRECTORY=/dask-scratch/scheduler
+      - TMPDIR=/dask-scratch/scheduler
+    ports:
+      - "8786:8786"
+      - "8787:8787"
+    volumes:
+      - csv_data:/opt/airflow/data
+      - /mnt/storage/dask-scratch/scheduler:/dask-scratch/scheduler
+    networks:
+      - platform_network
+    mem_limit: 1G
+    cpus: 0.5
+
+  dask-worker:
+    image: 10.0.1.145:5000/3phi-platform/dask:latest
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "2.0"
+          memory: 4G
+    depends_on:
+      - dask-scheduler
+    command: >
+      dask worker tcp://dask-scheduler:8786
+          --nthreads 2
+          --memory-limit 3.5GB
+          --no-dashboard
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ENDPOINT_URL=http://minio:9000
+      # DB Params
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      # Volume settings
+      - DASK_TEMPORARY_DIRECTORY=/dask-scratch/worker
+      - TMPDIR=/dask-scratch/worker
+    volumes:
+      - csv_data:/opt/airflow/data
+      - /mnt/storage/dask-scratch/worker:/dask-scratch/worker
+    networks:
+      - platform_network
+    mem_limit: 4G
+    cpus: 1.0
+
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - platform_network
+    restart: unless-stopped
+    mem_limit: 1G
+    cpus: 0.5
+
+  s3-init:
+    image: 10.0.1.145:5000/3phi-platform/s3init:latest
+    container_name: s3-init
+    depends_on:
+      - minio
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+    networks:
+      - platform_network
+
+volumes:
+  timescale_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/storage/timescaledb
+      o: bind
+  minio_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/storage/minio
+      o: bind
+  airflow_logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/storage/airflow_logs
+      o: bind
+  registry_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/storage/registry_data
+      o: bind
+  csv_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/storage/csv_data
+      o: bind
+
+networks:
+  platform_network:

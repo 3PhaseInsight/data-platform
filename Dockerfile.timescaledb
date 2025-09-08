@@ -1,0 +1,7 @@
+FROM timescale/timescaledb:latest-pg14
+
+# Copy init scripts into docker-entrypoint-initdb.d directory
+COPY timescale-init/ /docker-entrypoint-initdb.d/
+
+# Optional (but recommended): make sure file permissions are safe
+RUN chmod -R 755 /docker-entrypoint-initdb.d/

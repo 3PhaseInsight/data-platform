@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1.6
+FROM daskdev/dask:2025.5.1-py3.12
+
+USER root
+
+# System libs (plus cleanup)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libgeos-dev libgomp1 libpq-dev libpq5 gcc libstdc++6 && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /tmp/requirements.txt
+
+# Install Python deps as root; read private index from BuildKit secret
+RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
+    python -m pip install -U pip && \
+    pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Drop privileges for runtime
+USER dask
+ENV PATH="/home/dask/.local/bin:${PATH}"
+WORKDIR /home/dask

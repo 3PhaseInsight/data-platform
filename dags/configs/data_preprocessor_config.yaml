@@ -1,0 +1,123 @@
+Name: example
+Comment: This is a config file for exemplifying the DataPreprocessor pipeline
+
+Data_batch: second_batch  # first_batch or second_batch
+Use_dask: True  # True or False
+Cluster: LocalCluster  # LocalCluster, SSHCluster or KubeCluster at the moment (use LocalCluster on local machines)
+Cluster_settings:
+  processes: True  # Whether to use multiprocessing or multithreading
+  n_workers: 8  # Should not exceed the number of cores on your machine
+  # memory_limit: '32GB'  # Memory limit is PER WORKER
+  # dashboard_address: ':8786'  # Open dask dashboard via http://localhost:8786/
+
+Pipeline: DataPreprocessor  # Name of pipeline
+
+Unit: "feeder"  # sm, cabinet, feeder, transformer, secondary_substation, zip, sm_with_heatpump or sm_with_pv (mandatory)
+IDs: ["975670", "602057"]  # List of unit IDs to create datasets for. Not required for sm_with_heatpump and sm_with_pv (mandatory)
+Topology_processing_level: "raw"  # raw, cleaned, or cleaned_and_corrected (mandatory)
+Profile_processing_level: "raw"  # raw, cleaned or cleaned_and_phase_corrected (mandatory)
+Overwrite_existing_requested_datasets: False  # If existing requested datasets should be overwritten (mandatory)
+Overwrite_existing_raw_sm_datasets: False  # If existing raw SM datasets should be overwritten (mandatory)
+Overwrite_existing_cleaned_sm_datasets: False  # If existing cleaned SM datasets should be overwritten (mandatory)
+Overwrite_existing_cleaned_and_phase_corrected_sm_datasets: False  # If ex. cl&ph-c SM sets should be overwritten (mand)
+Overwrite_existing_topology_info: False  # If existing topology info files should be overwritten (mandatory)
+Overwrite_existing_timeseries_info: False  # If existing timeseries info file should be overwritten (mandatory)
+Add_current: False  # Whether to add current columns to the dataset (mandatory)
+Add_unbalance: False  # Whether to add V and I unbalance columns to the dataset (mandatory)
+Existing_SM_Clf:  # Name of existing SM classification which has to cover all relevant SMs (optional)
+Existing_phase_mapping:   # Name of existing SM phase mapping which has to cover all relevant SMs (optional)
+
+TopologyCleaner:
+  save_results: True
+  overwrite_existing_topology_files:
+
+SMClassifier:
+  sm_ids: []
+  topology_processing_level:
+  overwrite_existing_raw_sm_datasets:
+  overwrite_topology_info:
+  overwrite_timeseries_info:
+  run_name:
+  save_results: True
+  save_plots: False
+  plot_cfg: {"SM_selection": {"All_(with_dataset_containing_data)": False,  # True or False
+                              "With_only_good_data_quality": False,  # True or False
+                              "With_any_medium_or_bad_data_quality": True,  # True or False
+                              "With_1-phase_connection": True,  # True or False
+                              "With_2-phase_connection": True,  # True or False
+                              "With_connection_error": True,  # True or False
+                              "With_on_off_switch": True},  # True or False
+             "Variable_selection": ["V", "P14", "P23", "Q12", "Q34"],  # V, P14, P23, Q12 and/or Q34
+             "Phase_selection": ["L1", "L2", "L3"]}  # L1, L2 and/or L3
+  no_data_limit: 0.025  # Limit defining what counts as having "no data" # Fraction of total dataset of the longest recorded period of all SMs
+  good_data_limit: 0.1   # Limits defining what is "good", "medium", "bad"
+  medium_data_limit: 0.5   # Limits defining what is "good", "medium", "bad"
+  v_lim: 207  # lower voltage limit for "plausible" measurements
+  offset_threshold: 0.95  # Fraction of total data which has to be below v_lim to be considered offset data
+  cons_period_threshold: 192  # Length of constant values from which on a period is considered constant period
+  frozen_range: 12  # Range of consecutive values that have to be identical to consider it as frozen
+  S3:
+    base_path: s3://3phi
+    aws_access_key_id: minioadmin
+    aws_secret_access_key: minioadmin
+    endpoint_url: http://minio:9000
+
+SMPhaseMapper:
+  trafo_ids: []
+  topology_processing_level:
+  sm_clf_file:
+  run_name:
+  save_results: True
+  save_plots: True
+  overwrite_existing_trafo_datasets:
+    overwrite_existing_raw_sm_datasets:
+    overwrite_topology_info:
+    overwrite_timeseries_info:
+  save_missing_trafo_datasets: True
+
+ProfileCleaner:
+  sm_ids: [] #[152262, 725108, 190294, 169097]  #[190294] [169097] [725108] [152262] 3670 152262  # List of SM IDs to be cleaned
+  sm_phase_mapping_file:   #"Complete"  # Name of SMPhaseMapper run (folder name)
+  sm_topology_mapping_file: # "Cleaned_Topology_SM_mapping"  # Name of topology mapping file (created by DataExtractor)
+  sm_characterization_file:    # Name of SMClassifier run (folder name)
+  cleaning_run_name:   # Name under which meta results and plots will be saved
+  save_meta_results: True  # Boolean to define if meta results for current cleaning run should be saved
+  save_plots: False  # Boolean to define if plots for current cleaning run should be saved
+  overwrite_existing_raw_sm_datasets:
+  overwrite_existing_profiles:  # Boolean to decide if existing cleaned profiles should be overwritten by this run
+  overwrite_topology_info:
+  overwrite_timeseries_info:
+  considered_methods_v: [ 'days_around','rolling_mean','rolling_median' ]  # Any methods of ['regression','days_around','rolling_mean','rolling_median']
+  considered_methods_p: [ 'days_around','rolling_mean','rolling_median' ]  # Any methods of ['regression','days_around','rolling_mean','rolling_median']
+  considered_methods_q: [ 'days_around','rolling_mean','rolling_median' ]  # Any methods of ['regression','days_around','rolling_mean','rolling_median']
+  v_range: [ 200, 260 ]  # All voltage values outside this range considered abnormal (values inside can also be abnormal)
+  frozen_window: 24  # Number of consecutive voltage values that have to be constant to be considered frozen measurement
+  rolling_stats_window: 96  # Number of consecutive 15min values considered for calculating rolling statistics
+  num_neighbors: 0  # Number of neighbouring SMs considered as input for regression-based cleaning
+  test_size: 0.2  # Fraction of dataset used for early stopping regression model training & comparison to other methods
+  metric: "mae"  # Metric used for training regression model
+  early_stopping_patience: 10  # Number of added trees without improvement before early stopping the training process
+  outlier_err_window: 672  # Number of consecutive steps considered to calculate accepted error range (IQR)
+  whisker_v: 10  # Whisker to de-/increase accepted error range (IQR) for voltage cleaning
+  whisker_p: .inf  # Whisker to de-/increase accepted error range (IQR) for active power cleaning
+  whisker_q: .inf  # Whisker to de-/increase accepted error range (IQR) for reactive power cleaning
+  add_unbalance: False
+  add_current: False
+
+PhaseCorrector:
+  sm_ids: [] # List of SM IDs to be cleaned
+  processing_level:   # Level of SM profile pre-processing. Can be "raw" or "cleaned"
+  sm_phase_mapping_file:    # Name of SMPhaseMapper run (folder name)
+  consider_feeder_phase_twists: True  # If detected feeder phase twists should be taken into account
+  consider_doubled_phase_connection: True  # If SMs with doubled phase connection should be considered or ignored
+  phase_correct_run_name:   # Name under which meta results will be saved
+  overwrite_existing_profiles: True  # Boolean to decide if existing phase-corrected profiles should be overwritten
+  save_meta_results: True  # Boolean to define if meta results for current phase correction run should be saved
+  add_unbalance: False
+  add_current: False
+
+S3:
+  base_path: s3://3phi
+  aws_access_key_id: minioadmin
+  aws_secret_access_key: minioadmin
+  endpoint_url: http://minio:9000

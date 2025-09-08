@@ -1,0 +1,74 @@
+stages: [build]
+
+image: docker:27
+services:
+  - name: docker:27-dind
+    alias: docker
+    command: ["--tls=false"]      # plain TCP inside CI network
+
+variables:
+  DOCKER_TLS_CERTDIR: ""          # disable TLS in DinD
+  DOCKER_HOST: tcp://docker:2375  # point docker CLI to the DinD service
+  DOCKER_BUILDKIT: "1"
+
+# Create pipelines only for MRs and pushes to main
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - when: never
+
+# Shared login & sanity check
+.before:
+  before_script:
+    - docker version
+    - docker info || true
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+# Template: build & push ONE image (only SHA tag)
+.build-one:
+  stage: build
+  extends: .before
+  script:
+    - |
+      cat > pip.conf <<EOF
+      [global]
+      index-url = https://pypi.org/simple
+      extra-index-url = https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.3pi-dev.io/api/v4/projects/4/packages/pypi/simple
+      EOF
+    - echo "Building $IMAGE_NAME from $DOCKERFILE"
+    - >
+      docker buildx build
+      --pull
+      -f "$DOCKERFILE"
+      --secret id=pip_conf,src=pip.conf
+      -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+      --push
+      .
+  rules:
+    # Merge Request pipeline → manual button
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+      allow_failure: false
+    # Push/merge to main → run automatically
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
+
+build-airflow:
+  extends: .build-one
+  variables:
+    IMAGE_NAME: "airflow"
+    DOCKERFILE: "Dockerfile.airflow"
+
+build-dask:
+  extends: .build-one
+  variables:
+    IMAGE_NAME: "dask"
+    DOCKERFILE: "Dockerfile.dask"
+
+build-timescaledb:
+  extends: .build-one
+  variables:
+    IMAGE_NAME: "timescaledb"
+    DOCKERFILE: "Dockerfile.timescaledb"

@@ -1,0 +1,71 @@
+services:
+
+  timescaledb:
+    build:
+      context: .
+      dockerfile: Dockerfile.timescaledb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./volumes/timescale:/var/lib/postgresql/data
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./volumes/airflow_logs:/opt/airflow/logs
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    volumes:
+      - ./volumes/airflow_logs:/opt/airflow/logs
+      - ./data:/opt/airflow/data
+
+  airflow-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    volumes:
+      - ./volumes/airflow_logs:/opt/airflow/logs
+      - ./data:/opt/airflow/data
+
+  dask-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.dask
+    ports:
+      - "8786:8786"
+      - "8787:8787"
+    volumes:
+      - ./data:/opt/airflow/data
+
+  dask-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dask
+    volumes:
+      - ./data:/opt/airflow/data
+
+  minio:
+    volumes:
+      - ./volumes/minio:/data
+
+  s3-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.s3init
+
+  image-registry:
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./volumes/registry:/var/lib/registry
