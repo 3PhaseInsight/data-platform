@@ -8,15 +8,14 @@ RUN apt-get update && apt-get install -y libgeos-dev libgomp1 libpq-dev libpq5 g
 # Install any Python deps
 COPY requirements.txt /requirements.txt
 
-# read private index creds from a secret, not baked into the image
-RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
-    python -m pip install -U pip && \
-    pip install --no-cache-dir -r requirements.txt
-
 # Copy DAGs & source code
 COPY dags/ /opt/airflow/dags/
 
 USER airflow
+ENV PATH="/home/airflow/.local/bin:${PATH}"
 
-RUN pip install --no-cache-dir -r /requirements.txt
-
+# Use BuildKit secret for pip.conf, mount it where 'airflow' can read it.
+# NOTE the uid=50000 so the airflow user can read the secret.
+RUN --mount=type=secret,id=pip_conf,target=/home/airflow/.pip/pip.conf,uid=50000,gid=0,mode=0400 \
+    python -m pip install --user -U pip && \
+    pip install --user --no-cache-dir -r /opt/airflow/requirements.txt
