@@ -1,4 +1,4 @@
-stages: [build]
+stages: [build, deploy]
 
 image: docker:27
 services:
