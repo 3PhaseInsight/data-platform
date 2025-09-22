@@ -1,0 +1,16 @@
+FROM python:3.10-slim
+
+# Install required pip packages
+RUN pip install s3fs boto3
+
+# Create working directory
+WORKDIR /app
+
+# Copy your init script
+COPY s3-init/init_s3.py .
+
+# Make sure script is executable (optional)
+RUN chmod +x init_s3.py
+
+# Run init script on container start
+ENTRYPOINT ["python", "init_s3.py"]
