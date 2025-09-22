@@ -1,22 +1,5 @@
 services:
 
-  timescaledb:
-    image: 10.0.1.145:5000/3phi-platform/timescaledb:latest
-    container_name: timescaledb
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
-    volumes:
-      - timescale_data:/var/lib/postgresql/data
-    networks:
-      - platform_network
-    restart: unless-stopped
-    mem_limit: 8G
-    cpus: 2.0
-
   redis:
     image: redis:7
     container_name: redis
@@ -28,7 +11,7 @@ services:
     cpus: 0.25
 
   airflow-webserver:
-    image: 10.0.1.145:5000/3phi-platform/airflow:latest
+    image: ${CI_REGISTRY_IMAGE}/airflow:${IMAGE_TAG:-latest}
     container_name: airflow-webserver
     depends_on:
       - airflow-scheduler
@@ -71,7 +54,7 @@ services:
     cpus: 0.5
 
   airflow-scheduler:
-    image: 10.0.1.145:5000/3phi-platform/airflow:latest
+    image: ${CI_REGISTRY_IMAGE}/airflow:${IMAGE_TAG:-latest}
     container_name: airflow-scheduler
     restart: always
     depends_on:
@@ -103,7 +86,7 @@ services:
     cpus: 0.5
 
   airflow-worker:
-    image: 10.0.1.145:5000/3phi-platform/airflow:latest
+    image: ${CI_REGISTRY_IMAGE}/airflow:${IMAGE_TAG:-latest}
     container_name: airflow-worker
     restart: always
     depends_on:
@@ -133,7 +116,7 @@ services:
     cpus: 1.0
 
   dask-scheduler:
-    image: 10.0.1.145:5000/3phi-platform/dask:latest
+    image: ${CI_REGISTRY_IMAGE}/dask:${IMAGE_TAG:-latest}
     container_name: dask-scheduler
     command: dask-scheduler
     environment:
@@ -161,7 +144,7 @@ services:
     cpus: 0.5
 
   dask-worker:
-    image: 10.0.1.145:5000/3phi-platform/dask:latest
+    image: ${CI_REGISTRY_IMAGE}/dask:${IMAGE_TAG:-latest}
     deploy:
       replicas: 2
       resources:
@@ -199,61 +182,12 @@ services:
     mem_limit: 4G
     cpus: 1.0
 
-
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    command: server /data --console-address ":9001"
-    ports:
-      - "19000:9000"
-      - "19001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - minio_data:/data
-    networks:
-      - platform_network
-    restart: unless-stopped
-    mem_limit: 1G
-    cpus: 0.5
-
-  s3-init:
-    image: 10.0.1.145:5000/3phi-platform/s3init:latest
-    container_name: s3-init
-    depends_on:
-      - minio
-    environment:
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
-    networks:
-      - platform_network
-
 volumes:
-  timescale_data:
-    driver: local
-    driver_opts:
-      type: none
-      device: /mnt/storage/timescaledb
-      o: bind
-  minio_data:
-    driver: local
-    driver_opts:
-      type: none
-      device: /mnt/storage/minio
-      o: bind
   airflow_logs:
     driver: local
     driver_opts:
       type: none
       device: /mnt/storage/airflow_logs
-      o: bind
-  registry_data:
-    driver: local
-    driver_opts:
-      type: none
-      device: /mnt/storage/registry_data
       o: bind
   csv_data:
     driver: local

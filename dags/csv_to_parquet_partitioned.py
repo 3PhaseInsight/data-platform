@@ -3,7 +3,7 @@ import os
 
 import yaml
 from dask.distributed import Client, get_client
-from threephi_framework import DataExtractor
+from threephi_framework import DataExtractor, DataApp
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 

@@ -1,14 +1,5 @@
 services:
 
-  timescaledb:
-    build:
-      context: .
-      dockerfile: Dockerfile.timescaledb
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./volumes/timescale:/var/lib/postgresql/data
-
   redis:
     ports:
       - "6379:6379"
@@ -54,18 +45,3 @@ services:
       dockerfile: Dockerfile.dask
     volumes:
       - ./data:/opt/airflow/data
-
-  minio:
-    volumes:
-      - ./volumes/minio:/data
-
-  s3-init:
-    build:
-      context: .
-      dockerfile: Dockerfile.s3init
-
-  image-registry:
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./volumes/registry:/var/lib/registry

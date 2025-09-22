@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-FROM daskdev/dask:2025.5.1-py3.12
+FROM ghcr.io/dask/dask:2025.9.1-py3.12
 
 USER root
 
