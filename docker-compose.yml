@@ -179,8 +179,6 @@ services:
       - /mnt/storage/dask-scratch/worker:/dask-scratch/worker
     networks:
       - platform_network
-    mem_limit: 4G
-    cpus: 1.0
 
 volumes:
   airflow_logs:

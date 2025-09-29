@@ -1,0 +1,53 @@
+services:
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    networks:
+      - platform_network
+    restart: unless-stopped
+    mem_limit: 8G
+    cpus: 2.0
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - platform_network
+    restart: unless-stopped
+    mem_limit: 1G
+    cpus: 0.5
+
+volumes:
+  timescale_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/storage/timescaledb
+      o: bind
+  minio_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/storage/minio
+      o: bind
+
+networks:
+  platform_network:

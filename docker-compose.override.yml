@@ -1,47 +1,55 @@
-services:
+secrets:
+  pip_conf:
+    file: ./pip.conf
 
+services:
   redis:
     ports:
       - "6379:6379"
 
   airflow-webserver:
+    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.airflow
+      secrets:
+        - pip_conf
     ports:
       - "8080:8080"
     volumes:
+      - ${DAGS_DIR:-./dags}:/opt/airflow/dags
       - ./volumes/airflow_logs:/opt/airflow/logs
 
   airflow-scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.airflow
+    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     volumes:
+      - ${DAGS_DIR:-./dags}:/opt/airflow/dags
       - ./volumes/airflow_logs:/opt/airflow/logs
       - ./data:/opt/airflow/data
 
   airflow-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.airflow
+    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     volumes:
+      - ${DAGS_DIR:-./dags}:/opt/airflow/dags
       - ./volumes/airflow_logs:/opt/airflow/logs
       - ./data:/opt/airflow/data
 
   dask-scheduler:
+    image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.dask
+      secrets:
+        - pip_conf
     ports:
       - "8786:8786"
       - "8787:8787"
     volumes:
       - ./data:/opt/airflow/data
+      - ./volumes/dask-scratch/scheduler:/dask-scratch/scheduler
 
   dask-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.dask
+    image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}
     volumes:
       - ./data:/opt/airflow/data
+      - ./volumes/dask-scratch/worker:/dask-scratch/worker
