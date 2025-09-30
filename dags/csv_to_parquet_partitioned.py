@@ -3,7 +3,7 @@ import os
 
 import yaml
 from dask.distributed import Client, get_client
-from threephi_framework import DataExtractor, DataApp
+from threephi_framework import DataExtractor
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
@@ -23,7 +23,7 @@ def csv_to_parquet():
 
     override = pipeline_config["override"]
 
-    data_extractor = DataExtractor(s3_config=pipeline_config["S3"])
+    data_extractor = DataExtractor()
 
     workflow = "timeseries_csv_to_parquet_partitions"
     if not data_extractor.db_connector.is_workflow_completed(workflow) and override == False:
@@ -49,11 +49,9 @@ with DAG(
         dag_id='csv_to_partitioned_parquet',
         description='Ingest Timeseries Data from CSV to partitioned parquet file storage',
         default_args=default_args,
-        schedule_interval=None,  # Manual trigger only
         start_date=datetime.datetime.now(),
         catchup=False,
         max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
-        tags=['timeseries', 'ingestion', 'etl', 'parquet'],
 ) as dag:
 
     csv_ingest_task = PythonOperator(

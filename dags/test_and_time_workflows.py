@@ -27,7 +27,7 @@ def test_and_time_workflows():
 
     meter_id = pipeline_config["get_single_meter"]["id"]
 
-    data_extractor = DataExtractor(s3_config=pipeline_config["S3"], phase_measurements_dir=pipeline_config["data_dir_path"])
+    data_extractor = DataExtractor(phase_measurements_dir=pipeline_config["data_dir_path"])
 
     """ Testing workflow to get timeseries data """
     workflow = "get_timeseries_data"
