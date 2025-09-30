@@ -41,6 +41,10 @@ services:
       dockerfile: Dockerfile.dask
       secrets:
         - pip_conf
+    environment:
+      # Volume settings
+      - DASK_TEMPORARY_DIRECTORY=/dask-scratch/scheduler
+      - TMPDIR=/dask-scratch/scheduler
     ports:
       - "8786:8786"
       - "8787:8787"
