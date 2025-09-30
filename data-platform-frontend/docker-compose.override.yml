@@ -1,0 +1,11 @@
+services:
+  airflow-webserver:
+    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+      secrets:
+        - pip_conf
+    volumes:
+      - ${DAGS_DIR:-../dags}:/opt/airflow/dags
+      - ../volumes/airflow_logs:/opt/airflow/logs

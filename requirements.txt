@@ -1,23 +1,22 @@
 # "custom" package
-3phi-framework==0.1.3
+3phi-framework==0.1.3.dev12+pr.3.shaded035fe
 # regular packages
-s3fs==2024.5.0
-boto3==1.34.84
-botocore==1.34.84
-pyarrow==15.0.2
+s3fs
+pyarrow
 tqdm
-scikit-learn==1.7.1
+scikit-learn
 lightgbm
 typing-extensions
-pandas==2.2.2
+pandas
 dask==2025.5.1
 distributed
-fsspec==2024.5.0
-sqlalchemy==1.4.51
-psycopg2-binary==2.9.9
-apache-airflow-providers-celery==3.12.1
-lz4==4.4.4
+fsspec
+sqlalchemy
+psycopg2-binary==2.9.10
+apache-airflow-providers-celery
+apache-airflow-providers-amazon
+lz4
 toolz==0.12.0
-tornado==6.5
+tornado
 msgpack==1.1.0
 xxhash==3.5.0

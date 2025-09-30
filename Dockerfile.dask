@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1.6
-FROM daskdev/dask:2025.5.1-py3.12
+FROM ghcr.io/dask/dask:2025.9.1-py3.12
+
+ARG AIRFLOW_VERSION=2.11.0
+ARG PYTHON_VERSION=3.12
+ARG CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
 
 USER root
 
@@ -14,9 +18,12 @@ COPY requirements.txt /tmp/requirements.txt
 # Install Python deps as root; read private index from BuildKit secret
 RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
     python -m pip install -U pip && \
-    pip install --no-cache-dir -r /tmp/requirements.txt
+    pip install --no-cache-dir -r /tmp/requirements.txt --constraint "${CONSTRAINT_URL}"
 
 # Drop privileges for runtime
+ARG DASK_UID=1000 DASK_GID=1000
+RUN getent group dask >/dev/null || groupadd -g $DASK_GID dask \
+ && id -u dask >/dev/null 2>&1 || useradd -m -u $DASK_UID -g $DASK_GID -s /bin/bash dask \
+ && mkdir -p /dask-scratch/worker && chown -R dask:dask /dask-scratch /home/dask
 USER dask
-ENV PATH="/home/dask/.local/bin:${PATH}"
 WORKDIR /home/dask

@@ -1,5 +1,9 @@
 FROM apache/airflow:slim-2.11.0-python3.12
 
+ARG AIRFLOW_VERSION=2.11.0
+ARG PYTHON_VERSION=3.12
+ARG CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+
 USER root
 
 # Install system libraries
@@ -19,5 +23,4 @@ ENV PATH="/home/airflow/.local/bin:${PATH}"
 
 RUN --mount=type=secret,id=pip_conf,target=/home/airflow/.pip/pip.conf,uid=50000,gid=0,mode=0400 \
     python -m pip install -U pip && \
-    pip install --no-cache-dir -r /requirements.txt
-
+    pip install --no-cache-dir -r /requirements.txt --constraint "${CONSTRAINT_URL}"

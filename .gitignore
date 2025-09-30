@@ -8,5 +8,6 @@ dags/__pycache__
 data/csv/*
 logs
 volumes
+data-platform-infrastructure/volumes
 pip.conf
 .env

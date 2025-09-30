@@ -74,3 +74,7 @@ extra-index-url = https://pypi.org/simple
 
 - API Layer to query data directly from the TimescaleDB
 - Resource tuning to make platform less resource hungry (this will also lead to a degradation in performance, but that might be acceptable)
+
+## TODO
+- S3 Initialization: Create Buckets and Users automatically
+- "One command" local platform

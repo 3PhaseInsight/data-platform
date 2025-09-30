@@ -1,0 +1,9 @@
+services:
+
+  timescaledb:
+    volumes:
+      - ./volumes/timescale:/var/lib/postgresql/data
+
+  minio:
+    volumes:
+      - ./volumes/minio:/data
