@@ -10,4 +10,3 @@ logs
 volumes
 data-platform-infrastructure/volumes
 pip.conf
-.env
