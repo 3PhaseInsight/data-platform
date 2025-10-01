@@ -1,41 +1,51 @@
 #!/usr/bin/env bash
 
-# Simple local script to create a Postgres role in the running 'timescaledb' container.
+# Simple local script to create a Postgres role without depending on a specific container runtime.
 # Usage:
-#   ./create-db-user.sh <username> <password>
-
-# Exit if any command returns a non-zero status
+#      ./create-db-user.sh <host> <port> <admin_user> <admin_password> <role> <role_password> [<database>]
+# e.g. ./create-db-user.sh localhost 5432 postgres password threephi_db_user strongpass 3phi-db
 set -eo pipefail
 
-# Check number of arguments, should be 2
-if [ "$#" -ne 2 ]; then
-  echo "Provide two arguments. Example of usage: $0 <username> <password>"
+# Check argument count
+if [ "$#" -lt 6 ] || [ "$#" -gt 7 ]; then
+  echo "Usage: $0 <host> <port> <admin_user> <admin_password> <role> <role_password> [<database>]"
   exit 1
 fi
 
-USER="$1"
-PASS="$2"
-
-# Check if a container exists with the name timescaledb
-if ! docker ps --format '{{.Names}}' | grep -q '^timescaledb$'; then
-  echo "Error: 'timescaledb' container is not running. Start it with: make up"
+# Check if psql is installed
+if ! command -v psql >/dev/null 2>&1; then
+  echo "Error: psql command not found. Install the PostgreSQL client tools before running this script."
   exit 1
 fi
 
-# Check if role exists
-EXISTS=$(docker exec timescaledb bash -lc \
-  "export PGPASSWORD=\"\$POSTGRES_PASSWORD\"; \
-   psql -q -h 127.0.0.1 -p 5432 -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB:-postgres}\" -tAc \"SELECT 1 FROM pg_roles WHERE rolname = '$USER';\"" \
-  | tr -d '[:space:]')
+HOST="$1"
+PORT="$2"
+ADMIN_USER="$3"
+ADMIN_PASS="$4"
+ROLE="$5"
+ROLE_PASS="$6"
+DB_NAME="${7:-${POSTGRES_DB:-postgres}}"
+
+# Trim whitespace from psql output before comparing.
+trim() {
+  tr -d '[:space:]'
+}
+
+# Check if role already exists.
+EXISTS=$(PGPASSWORD="$ADMIN_PASS" \
+  psql -q -h "$HOST" -p "$PORT" -U "$ADMIN_USER" -d "$DB_NAME" \
+  -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$ROLE';" | trim || true)
 
 if [ "$EXISTS" = "1" ]; then
-  echo "Role '$USER' already exists." 
+  echo "Role '$ROLE' already exists."
   exit 0
 fi
 
-# Create role
-docker exec timescaledb bash -lc \
-  "export PGPASSWORD=\"\$POSTGRES_PASSWORD\"; \
-   psql -h 127.0.0.1 -p 5432 -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB:-postgres}\" -c \"CREATE ROLE $USER WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION PASSWORD '$PASS';\""
+# Escape single quotes in the password for SQL string literal safety.
+ESCAPED_ROLE_PASS=${ROLE_PASS//\'/''}
 
-echo "Role '$USER' created."
+PGPASSWORD="$ADMIN_PASS" \
+  psql -h "$HOST" -p "$PORT" -U "$ADMIN_USER" -d "$DB_NAME" -c \
+    "CREATE ROLE \"$ROLE\" WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION PASSWORD '$ESCAPED_ROLE_PASS';"
+
+echo "Role '$ROLE' created."
