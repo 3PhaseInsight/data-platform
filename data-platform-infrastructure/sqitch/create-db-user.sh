@@ -25,7 +25,7 @@ fi
 # Check if role exists
 EXISTS=$(docker exec timescaledb bash -lc \
   "export PGPASSWORD=\"\$POSTGRES_PASSWORD\"; \
-   psql -h 127.0.0.1 -p 5432 -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB:-postgres}\" -tAc \"SELECT 1 FROM pg_roles WHERE rolname = '$USER';\"" \
+   psql -q -h 127.0.0.1 -p 5432 -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB:-postgres}\" -tAc \"SELECT 1 FROM pg_roles WHERE rolname = '$USER';\"" \
   | tr -d '[:space:]')
 
 if [ "$EXISTS" = "1" ]; then
@@ -39,21 +39,3 @@ docker exec timescaledb bash -lc \
    psql -h 127.0.0.1 -p 5432 -U \"\$POSTGRES_USER\" -d \"\${POSTGRES_DB:-postgres}\" -c \"CREATE ROLE $USER WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION PASSWORD '$PASS';\""
 
 echo "Role '$USER' created."
-
-
-
-
-
-psql_cmd=(docker exec -e PGPASSWORD timescaledb \
-  psql -h 127.0.0.1 -p 5432 -U "$POSTGRES_USER" -d "${POSTGRES_DB:-postgres}" -tAc)
-
-if "${psql_cmd[@]}" "SELECT 1 FROM pg_roles WHERE rolname = '$user';" | grep -q 1; then
-  echo "Role '$user' already exists."
-  exit 0
-fi
-
-docker exec -e PGPASSWORD timescaledb \
-  psql -h 127.0.0.1 -p 5432 -U "$POSTGRES_USER" -d "${POSTGRES_DB:-postgres}" \
-  -c "CREATE ROLE \"$user\" WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION PASSWORD '$pass';"
-
-echo "Role '$user' created."
