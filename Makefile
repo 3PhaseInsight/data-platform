@@ -1,5 +1,4 @@
 PROJECT=data-platform
-# or env.dev if you prefer
 ENV_FILE=.env
 COMPOSE_FILES= \
   -f docker-compose.yml \

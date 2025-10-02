@@ -40,31 +40,69 @@ so the containers can read data from there for the initial ingestion.
 ## Local Development
 
 ### Getting started
-1) You need to have Docker installed and running as a desktop application (can be downloaded from https://www.docker.com/)
-2) You need to have sqitch (a database migration tool) installed. You can install it from the terminal using homebrew (macOS only):
-    '''
-    brew tap sqitchers/sqitch
-    brew install sqitch --with-postgres-support
-    '''
-    If you're on Windows, there are other ways to get sqitch.
-3) You also need to have psql installed (a command-line cliet for PostgreSQL databases). This will be picked up during the build process to install the custom 3phi-framework python library. You can install it from the terminal using homebrew (macOS only). The second command ads pqsl to the path:
-    '''
-    brew install libpq
-    echo 'export PATH="/usr/local/opt/libpq/bin:$PATH"' >> ~/.zshrc
-    '''
-    After adding to the path you need to restart the shell. If you're on Windows, there are other ways to get psql.
-4) Create a file in the top folder of the repository (the folder is called "data-platform"). The new file should be named "pip.conf". Copy the following into the file:
-    ```
-    [global]
-    index-url = https://<GL_USER>:<GL_TOKEN>@gitlab.3pi-dev.io/api/v4/projects/4/packages/pypi/simple
-    extra-index-url = https://pypi.org/simple
-    ```
-   Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a gitlab access token provided by Chris (the token is basically a string of characters, like a password).
-5) In your terminal, navigate to the "data-platform" folder and execute the following command:
-    ```
-    make up HOST=localhost PORT=5432 DB_USER=postgres PASSWORD=password ROLE=threephi_db_user ROLE_PW=userpass DB_NAME=3phi-db  
-    ```
-    The Docker container with database, dask cluster and airflow will be created locally on your machine. A user will be created with the name you provide as ROLE, and password you provide as ROLE_PW. Working locally this is rather arbitrary (merely 'pro forma') and you will not need to remember those. At last, the database will be deployed locally on your machine.
+#### 1. Docker Installation
+You need to have `Docker` installed and running as a desktop application. It can be downloaded from `https://www.docker.com`. You don't need to login as a user.
+
+#### 2. Packet Manager Installation
+You need a packet manager installed to be able to install further prerequisites from your terminal. 
+
+**macOS users:**
+If you don't have `Homebrew` installed, open your terminal, paste in the following command at the prompt and press 'Enter':
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+**Windows users:**
+If you don't have `Chocolatey` installed:
+1. Open PowerShell as Administrator (right-click Start button → "Windows PowerShell (Admin)")
+2. Paste in the following command at the prompt and press 'Enter':
+```powershell
+iwr https://chocolatey.org/install.ps1 -UseBasicParsing | iex
+```
+
+#### 3. Sqitch Installation
+You need to have `sqitch` (a database migration tool) installed. You can install it from the terminal using the following command:
+
+**macOS users:**
+```bash
+brew install sqitch
+```
+
+**Windows:**
+```powershell
+choco install sqitch
+```
+
+#### 4. Install PostgreSQL client tools
+You also need to have `psql` installed (a command-line cliet for PostgreSQL databases). This will be picked up during the build process to install the custom 3phi-framework python library. You can install it from the terminal using the following command(s):
+
+**macOS:**
+```bash
+brew install libpq
+echo 'export PATH="$(brew --prefix libpq)/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Windows:**
+```powershell
+choco install postgresql
+```
+
+#### 5. Creating a pip.conf file
+Create a file in the top folder of the repository (the folder is called `data-platform`). The new file should be named `pip.conf`. Copy the following into the file:
+```
+[global]
+index-url = https://<GL_USER>:<GL_TOKEN>@gitlab.3pi-dev.io/api/v4/projects/4/packages/pypi/simple
+extra-index-url = https://pypi.org/simple
+```
+Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a Gitlab access token provided by an Admin (Token might need "Owner" permissions due to Gitlab quirks).
+
+#### 6. Build the database platform and import the database
+In your terminal, navigate to the "data-platform" folder and execute the following command:
+```
+make up HOST=localhost PORT=5432 DB_USER=postgres PASSWORD=password ROLE=threephi_db_user ROLE_PW=userpass DB_NAME=3phi-db  
+```
+This will create the Docker container with database, dask cluster and airflow locally on your machine. A user will be created with the name threephi_db_user, and the password you provide as ROLE_PW. Working locally this is rather arbitrary (merely 'pro forma') and you will not need to remember the password. At last, the database will be deployed locally on your machine.
 
 ## Custom Docker Images
 
@@ -73,7 +111,3 @@ The custom airflow image is built so the defined dags and the source code are av
 
 ### Dask
 The custom dask image is built, so the source code is bundled directly in the image.
-
-## TODOs
-- S3 Initialization: Create Buckets and Users automatically
-- "One command" local platform
