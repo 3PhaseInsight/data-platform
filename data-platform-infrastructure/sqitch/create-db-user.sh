@@ -2,11 +2,13 @@
 
 # Simple local script to create a Postgres role without depending on a specific container runtime.
 # Usage:
-#      ./create-db-user.sh <host> <port> <admin_user> <admin_password> <role> <role_password> [<database>]
-# e.g. ./create-db-user.sh localhost 5432 postgres password threephi_db_user strongpass 3phi-db
+#      ./create-db-user.sh <host/IP> <port_of_remote_machine> <admin_user_of_db_server> <admin_password> <role> <role_password> [<database_name>] 
+#      (database_name is optional, defaults to POSTGRES_DB environment variable or if not set it defaults to "postgres")
+#      e.g. ./create-db-user.sh localhost 5432 postgres password threephi_db_user strongpass 3phi-db
+
 set -eo pipefail
 
-# Check argument count
+# Check argument count (should be 6 or 7)
 if [ "$#" -lt 6 ] || [ "$#" -gt 7 ]; then
   echo "Usage: $0 <host> <port> <admin_user> <admin_password> <role> <role_password> [<database>]"
   exit 1
@@ -14,10 +16,11 @@ fi
 
 # Check if psql is installed
 if ! command -v psql >/dev/null 2>&1; then
-  echo "Error: psql command not found. Install the PostgreSQL client tools before running this script."
+  echo "Error: psql command not found. Install the PostgreSQL client tools before running this script. If already installed, make sure it's in your PATH."
   exit 1
 fi
 
+# Assign arguments to variables
 HOST="$1"
 PORT="$2"
 ADMIN_USER="$3"
