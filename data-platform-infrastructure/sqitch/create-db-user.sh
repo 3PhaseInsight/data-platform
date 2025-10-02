@@ -47,6 +47,7 @@ fi
 # Escape single quotes in the password for SQL string literal safety.
 ESCAPED_ROLE_PASS=${ROLE_PASS//\'/''}
 
+# Create the role with the specified password.
 PGPASSWORD="$ADMIN_PASS" \
   psql -h "$HOST" -p "$PORT" -U "$ADMIN_USER" -d "$DB_NAME" -c \
     "CREATE ROLE \"$ROLE\" WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION PASSWORD '$ESCAPED_ROLE_PASS';"

@@ -6,6 +6,9 @@ services:
       dockerfile: Dockerfile.airflow
       secrets:
         - pip_conf
+    depends_on:
+      timescaledb:
+        condition: service_healthy
     volumes:
       - ${DAGS_DIR:-../dags}:/opt/airflow/dags
       - ../volumes/airflow_logs:/opt/airflow/logs
