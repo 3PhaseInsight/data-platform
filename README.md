@@ -89,20 +89,20 @@ choco install postgresql
 ```
 
 #### 5. Creating a pip.conf file
-Create a file in the top folder of the repository (the folder is called `data-platform`). The new file should be named `pip.conf`. Copy the following into the file:
+Create a file in the root of the repository (the folder is called `data-platform`). The new file should be named `pip.conf`. Copy the following into the file:
 ```
 [global]
 index-url = https://<GL_USER>:<GL_TOKEN>@gitlab.3pi-dev.io/api/v4/projects/4/packages/pypi/simple
 extra-index-url = https://pypi.org/simple
 ```
-Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a Gitlab access token provided by an Admin (Token might need "Owner" permissions due to Gitlab quirks).
+Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a Gitlab access token provided by an Admin (Token might need "Owner" permissions due to Gitlab quirks). The pip.conf file will be picked up during the build process to install the custom 3phi-framework python library.
 
 #### 6. Build the database platform and import the database
 In your terminal, navigate to the "data-platform" folder and execute the following command:
 ```
 make up HOST=localhost PORT=5432 DB_USER=postgres PASSWORD=password ROLE=threephi_db_user ROLE_PW=userpass DB_NAME=3phi-db  
 ```
-This will create the Docker container with database, dask cluster and airflow locally on your machine. A user will be created with the name threephi_db_user, and the password you provide as ROLE_PW. Working locally this is rather arbitrary (merely 'pro forma') and you will not need to remember the password. At last, the database will be deployed locally on your machine.
+This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created with the name threephi_db_user, and the password you provide as ROLE_PW. Working locally this password is rather arbitrary (merely 'pro forma') and you will not need to remember it. At last, the database will be initialized with the necessary schemas & tables.
 
 ## Custom Docker Images
 
