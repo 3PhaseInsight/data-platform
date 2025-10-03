@@ -1,6 +1,12 @@
 services:
 
   timescaledb:
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1" ]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
     volumes:
       - ./volumes/timescale:/var/lib/postgresql/data
 
