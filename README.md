@@ -97,7 +97,7 @@ extra-index-url = https://pypi.org/simple
 ```
 Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a Gitlab access token provided by an Admin (Token might need "Owner" permissions due to Gitlab quirks). The pip.conf file will be picked up during the build process to install the custom 3phi-framework python library.
 
-#### 6. Build the database platform and import the database
+#### 6. Deploy the platform locally and initialize the database
 In your terminal, navigate to the "data-platform" folder and execute the following command:
 ```
 make up HOST=localhost PORT=5432 DB_USER=postgres PASSWORD=password ROLE=threephi_db_user ROLE_PW=userpass DB_NAME=3phi-db  
