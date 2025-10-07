@@ -1,5 +1,5 @@
 # "custom" package
-3phi-framework==0.1.5
+3phi-framework==0.1.6.dev27+pr.4.sha9e0bb21a
 # regular packages
 s3fs
 pyarrow
@@ -9,7 +9,7 @@ lightgbm
 typing-extensions
 pandas
 dask==2025.5.1
-distributed
+distributed==2025.5.1
 fsspec
 sqlalchemy
 psycopg2-binary==2.9.10

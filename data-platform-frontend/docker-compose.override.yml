@@ -9,6 +9,8 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
+    environment:
+      - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://:${REDIS_PASSWORD}@redis:6379/1
     volumes:
       - ${DAGS_DIR:-../dags}:/opt/airflow/dags
       - ../volumes/airflow_logs:/opt/airflow/logs

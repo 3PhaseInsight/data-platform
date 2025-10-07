@@ -44,15 +44,9 @@ CREATE TABLE public.file_index (
     created_at     timestamptz NOT NULL DEFAULT now(),
     committed_at   timestamptz,
     CONSTRAINT file_index_status_chk
-       CHECK (status = ANY (ARRAY['staged','ready','deprecated','failed']))
-);
-
-CREATE TABLE public.hourly_measurements (
-    meter_id   bigint NOT NULL,
-    "timestamp" timestamptz NOT NULL,
-    consumption real,
-    production  real,
-    PRIMARY KEY (meter_id, "timestamp")
+       CHECK (status = ANY (ARRAY['staged','ready','deprecated','failed'])),
+    CONSTRAINT file_index_dt_shard_seq_key
+        UNIQUE (dt, shard, seq)
 );
 
 CREATE TABLE public.ingest_batch (
@@ -68,12 +62,25 @@ CREATE TABLE public.ingest_batch (
     UNIQUE (source_file, run_id)
 );
 
+-- FK added after both tables exist (batch_id is nullable)
+ALTER TABLE public.file_index
+    ADD CONSTRAINT file_index_batch_fk
+        FOREIGN KEY (batch_id) REFERENCES public.ingest_batch(id) ON DELETE SET NULL;
+
 CREATE TABLE public.meter (
     id          text PRIMARY KEY,
     first_seen  timestamptz NOT NULL,
     last_seen   timestamptz NOT NULL,
     total_rows  bigint NOT NULL DEFAULT 0,
     updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.hourly_measurements (
+                                            meter_id   bigint NOT NULL,
+                                            "timestamp" timestamptz NOT NULL,
+                                            consumption real,
+                                            production  real,
+                                            PRIMARY KEY (meter_id, "timestamp")
 );
 
 CREATE TABLE public.meter_data (
@@ -111,11 +118,6 @@ CREATE TABLE public.workflow_states (
     updated_at  timestamp without time zone DEFAULT now()
 );
 
--- FK added after both tables exist (batch_id is now NULLable)
-ALTER TABLE public.file_index
-    ADD CONSTRAINT file_index_batch_fk
-        FOREIGN KEY (batch_id) REFERENCES public.ingest_batch(id) ON DELETE SET NULL;
-
 -- =========================
 -- Indexes
 -- =========================
@@ -130,7 +132,7 @@ CREATE INDEX meter_data_timestamp_idx          ON public.meter_data ("timestamp"
 -- (No manual insert_blocker triggers!)
 -- =========================
 SELECT create_hypertable('public.hourly_measurements', 'timestamp', if_not_exists => TRUE);
-SELECT create_hypertable('public.meter_data',         'timestamp', if_not_exists => TRUE);
+SELECT create_hypertable('public.meter_data', 'timestamp', if_not_exists => TRUE);
 
 -- =========================
 -- Triggers (your own only)
