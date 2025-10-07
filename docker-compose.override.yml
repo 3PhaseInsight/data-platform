@@ -7,19 +7,6 @@ services:
     ports:
       - "6379:6379"
 
-  airflow-webserver:
-    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.airflow
-      secrets:
-        - pip_conf
-    ports:
-      - "8080:8080"
-    volumes:
-      - ${DAGS_DIR:-./dags}:/opt/airflow/dags
-      - ./volumes/airflow_logs:/opt/airflow/logs
-
   airflow-scheduler:
     image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     volumes:
@@ -56,4 +43,4 @@ services:
     image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}
     volumes:
       - ./data:/opt/airflow/data
-      - ./volumes/dask-scratch/worker:/dask-scratch/worker
+      # - ./volumes/dask-scratch/worker:/dask-scratch/worker
