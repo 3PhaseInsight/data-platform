@@ -10,7 +10,7 @@ set -eo pipefail
 
 # Check argument count (should be 6 or 7)
 if [ "$#" -lt 6 ] || [ "$#" -gt 7 ]; then
-  echo "Usage: $0 <host> <port> <admin_user> <admin_password> <role> <role_password> [<database>]"
+  echo "Usage: $0 <host/IP> <port_of_remote_machine> <admin_user_of_db_server> <admin_password> <role> <role_password> [<database_name>]"
   exit 1
 fi
 
