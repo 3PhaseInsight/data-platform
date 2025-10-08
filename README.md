@@ -61,7 +61,7 @@ iwr https://chocolatey.org/install.ps1 -UseBasicParsing | iex
 ```
 
 #### 3. Sqitch Installation
-You need to have `sqitch` (a database migration tool) installed. You can install it from the terminal using the following command:
+You need to have `sqitch` (a database migration tool) installed. You can install it from the terminal using the following command(s):
 
 **macOS users:**
 ```bash
