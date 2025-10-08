@@ -1,5 +1,5 @@
 # "custom" package
-3phi-framework==0.1.7
+3phi-framework==0.1.8
 # regular packages
 s3fs
 pyarrow
