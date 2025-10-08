@@ -80,7 +80,6 @@ with DAG(
         task_id='test_workflows',
         python_callable=test_and_time_workflows,
         provide_context=True,
-        pool='database_pool',  # Use connection pool if configured
         doc_md="""
         ## Workflows
         # Get Timeseries Info

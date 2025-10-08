@@ -5,7 +5,7 @@ dtu-code-clean
 dags/dtu
 api/node_modules
 dags/__pycache__
-data/csv/*
+data/*
 logs
 volumes
 data-platform-infrastructure/volumes

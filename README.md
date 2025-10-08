@@ -61,7 +61,7 @@ iwr https://chocolatey.org/install.ps1 -UseBasicParsing | iex
 ```
 
 #### 3. Sqitch Installation
-You need to have `sqitch` (a database migration tool) installed. You can install it from the terminal using the following command:
+You need to have `sqitch` (a database migration tool) installed. You can install it from the terminal using the following command(s):
 
 **macOS users:**
 ```bash
@@ -70,6 +70,7 @@ brew install sqitch
 
 **Windows:**
 ```powershell
+choco install strawberryperl
 choco install sqitch
 ```
 
@@ -97,12 +98,24 @@ extra-index-url = https://pypi.org/simple
 ```
 Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a Gitlab access token provided by an Admin (Token might need "Owner" permissions due to Gitlab quirks). The pip.conf file will be picked up during the build process to install the custom 3phi-framework python library.
 
-#### 6. Deploy the platform locally and initialize the database
-In your terminal, navigate to the "data-platform" folder and execute the following command:
+#### 6. Build the database platform and import the database
+If you are working in MacOS you should already have `make` installed, but if you work on a Windows machine you need to install it:
+
+```powershell
+choco install make
+```
+
+Now, in your terminal, navigate to the "data-platform" folder and execute the following command:
 ```
 make up HOST=localhost PORT=5432 DB_USER=postgres PASSWORD=password ROLE=threephi_db_user ROLE_PW=userpass DB_NAME=3phi-db  
 ```
-This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created with the name threephi_db_user, and the password you provide as ROLE_PW. Working locally this password is rather arbitrary (merely 'pro forma') and you will not need to remember it. At last, the database will be initialized with the necessary schemas & tables.
+This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created named threephi_db_user, with the password you provide as ROLE_PW. Working locally this password is rather arbitrary (merely 'pro forma') and you will not need to remember it. At last, the database will be initialized with the necessary schemas & tables.
+
+#### 7. Create MinIO buckets
+You should have the database containers running in Docker now. From the Containers tab in the Docker desktop app, press the link '19000:9000' belonging to the pin 'minio' (alternatively, open your browser and enter `localhost: 19001`). This should open the MinIO Console in your browser. Login using credentials from the .env-file (e.g. user: minioadmin; password: minioadmin). Create two buckets using the 'Create Bucket' button. Name the first bucket `3phi`. It will hold the ingested timeseries data in parquet files. Name the second bucket `airflow-logs`. It will hold the logs from scripts executed as DAGs via Airflow.
+
+#### 8. Access the Airflow UI
+From the Containers tab in the Docker desktop app, press the link '8080:8080' belonging to the pin 'Airflow-webserver-1' (alternatively, open your browser and enter `localhost: 8080`). This should open the airflow UI in your browser, from where you can run the DAGs. Now, run your first DAG (gosh 🤗).
 
 ## Custom Docker Images
 
