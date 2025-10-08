@@ -58,7 +58,6 @@ with DAG(
         task_id='load_meter_data',
         python_callable=csv_to_parquet,
         provide_context=True,
-        pool='database_pool',  # Use connection pool if configured
         doc_md="""
         ## CSV --> Partitioned Parquet
         
