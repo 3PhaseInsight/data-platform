@@ -82,10 +82,10 @@ make up
 ```
 This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created named threephi_db_user. This user will be used by the other services when they interact with the database. At last, the database will be initialized with the necessary schemas & tables.
 
-#### 7. Create MinIO buckets
+#### 5. Create MinIO buckets
 You should have the database containers running in Docker now. From the Containers tab in the Docker desktop app, press the link '19000:9000' belonging to the pin 'minio' (alternatively, open your browser and enter `localhost: 19001`). This should open the MinIO Console in your browser. Login using credentials from the .env-file (e.g. user: minioadmin; password: minioadmin). Create two buckets using the 'Create Bucket' button. Name the first bucket `3phi`. It will hold the ingested timeseries data in parquet files. Name the second bucket `airflow-logs`. It will hold the logs from scripts executed as DAGs via Airflow.
 
-#### 8. Access the Airflow UI
+#### 6. Access the Airflow UI
 From the Containers tab in the Docker desktop app, press the link '8080:8080' belonging to the pin 'Airflow-webserver-1' (alternatively, open your browser and enter `localhost: 8080`). This should open the airflow UI in your browser, from where you can run the DAGs. Now, run your first DAG (gosh 🤗).
 
 ## Custom Docker Images
