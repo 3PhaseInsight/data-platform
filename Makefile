@@ -8,14 +8,8 @@ COMPOSE_FILES= \
   -f data-platform-frontend/docker-compose.yml \
   -f data-platform-frontend/docker-compose.override.yml
 
-init-db:
-	./data-platform-infrastructure/sqitch/create-db-user.sh $(HOST) $(PORT) $(DB_USER) $(PASSWORD) $(ROLE) $(ROLE_PW) $(DB_NAME) && \
-  cd data-platform-infrastructure/sqitch && \
-	./sqitch-deploy.sh $(HOST):$(PORT) $(DB_USER) $(PASSWORD)
-
 up:
-	docker compose --env-file $(ENV_FILE) -p $(PROJECT) $(COMPOSE_FILES) up -d --build && \
-  make init-db
+	docker compose --env-file $(ENV_FILE) -p $(PROJECT) $(COMPOSE_FILES) up -d --build
 
 down:
 	docker compose --env-file $(ENV_FILE) -p $(PROJECT) $(COMPOSE_FILES) down
