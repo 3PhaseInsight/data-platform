@@ -8,8 +8,26 @@ services:
       retries: 60
       start_period: 10s
     volumes:
-      - ./volumes/timescale:/var/lib/postgresql/data
+      - ../volumes/timescale:/var/lib/postgresql/data
 
   minio:
     volumes:
       - ./volumes/minio:/data
+
+  sqitch-runner:
+    image: sqitch/sqitch
+    working_dir: /sqitch
+    environment:
+      ROLE: threephi_db_user
+      ROLE_PW: userpass
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    volumes:
+      - ./data-platform-infrastructure/sqitch:/sqitch
+    networks:
+      - platform_network
+    entrypoint: [ "bash", "-lc" ]
+    command: >
+      "ls && ./create-db-user.sh ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} $${ROLE} $${ROLE_PW} ${POSTGRES_DB}
+      && ./sqitch-deploy.sh ${POSTGRES_HOST}:${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} ${POSTGRES_DB}"
