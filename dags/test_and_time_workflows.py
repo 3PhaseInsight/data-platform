@@ -73,13 +73,11 @@ with DAG(
         start_date=datetime.datetime.now(),
         catchup=False,
         max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
-        tags=['testing', 'workflows'],
 ) as dag:
 
     test_task = PythonOperator(
         task_id='test_workflows',
         python_callable=test_and_time_workflows,
-        provide_context=True,
         doc_md="""
         ## Workflows
         # Get Timeseries Info

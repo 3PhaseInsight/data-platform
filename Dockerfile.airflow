@@ -1,7 +1,7 @@
-FROM apache/airflow:slim-2.11.0-python3.12
+FROM apache/airflow:slim-3.1.0-python3.13
 
-ARG AIRFLOW_VERSION=2.11.0
-ARG PYTHON_VERSION=3.12
+ARG AIRFLOW_VERSION=3.1.0
+ARG PYTHON_VERSION=3.13
 ARG CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
 
 USER root

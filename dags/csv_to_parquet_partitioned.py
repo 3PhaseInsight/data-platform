@@ -5,7 +5,7 @@ import yaml
 from dask.distributed import Client, get_client
 from threephi_framework import DataExtractor
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 PHASE_MEASUREMENTS_READY_PATH = "phase_measurements/raw"
 
@@ -16,7 +16,7 @@ def csv_to_parquet():
     except ValueError:
         Client("tcp://dask-scheduler:8786")
 
-    config_file = "csv_to_parquet_config_partitioned.yaml"
+    config_file = "csv_to_parquet_partitioned_config.yaml"
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:
         pipeline_config = yaml.safe_load(file)
@@ -46,7 +46,7 @@ default_args = {
 
 # Define DAG
 with DAG(
-        dag_id='csv_to_partitioned_parquet',
+        dag_id='csv_to_parquet_partitioned',
         description='Ingest Timeseries Data from CSV to partitioned parquet file storage',
         default_args=default_args,
         start_date=datetime.datetime.now(),
@@ -57,7 +57,6 @@ with DAG(
     csv_ingest_task = PythonOperator(
         task_id='load_meter_data',
         python_callable=csv_to_parquet,
-        provide_context=True,
         doc_md="""
         ## CSV --> Partitioned Parquet
         

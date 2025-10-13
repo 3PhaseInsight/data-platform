@@ -1,5 +1,5 @@
 # "custom" package
-3phi-framework==0.1.8
+3phi-framework==0.1.8.dev44+pr.7.shaf1f5268f
 # regular packages
 s3fs
 pyarrow
@@ -12,11 +12,13 @@ dask==2025.5.1
 distributed==2025.5.1
 fsspec
 sqlalchemy
-psycopg2-binary==2.9.10
+asyncpg
+psycopg2-binary
 apache-airflow-providers-celery
 apache-airflow-providers-amazon
 lz4
 toolz==0.12.0
 tornado
-msgpack==1.1.0
+msgpack
 xxhash==3.5.0
+graphviz
