@@ -13,6 +13,8 @@ services:
       - ${DAGS_DIR:-./dags}:/opt/airflow/dags
       - ./volumes/airflow_logs:/opt/airflow/logs
       - ./data:/opt/airflow/data
+    environment:
+      - AIRFLOW__API__BASE_URL=http://localhost:8080
 
   airflow-worker:
     image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
@@ -20,6 +22,8 @@ services:
       - ${DAGS_DIR:-./dags}:/opt/airflow/dags
       - ./volumes/airflow_logs:/opt/airflow/logs
       - ./data:/opt/airflow/data
+    environment:
+      - AIRFLOW__API__BASE_URL=http://localhost:8080
 
   dask-scheduler:
     image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}

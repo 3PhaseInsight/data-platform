@@ -7,7 +7,7 @@ import yaml
 from dask.distributed import Client, get_client
 from threephi_framework import DataExtractor
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 PHASE_MEASUREMENTS_READY_PATH = "phase_measurements/raw"
 

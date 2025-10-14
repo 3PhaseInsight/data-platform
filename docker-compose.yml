@@ -17,35 +17,29 @@ services:
       - redis
       - timescaledb
     environment:
-      - AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-webserver:8080/execution/
-      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+      # Executor Config (Celery)
       - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
       - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
-      - AIRFLOW__CELERY__WORKER_CONCURRENCY=4
-      - AIRFLOW__SCHEDULER__ZOMBIE_TASK_THRESHOLD=1200
-      - AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY}
-      - AIRFLOW__API_AUTH__JWT_SECRET=${AIRFLOW_TMP_JWT_OVERRIDE}
+      # Airflow Core
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
-      # DB Params
+      - AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-webserver:8080/execution/
+      # Database
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      # Logging
+      - AIRFLOW_CONN_MINIO_LOGS={"conn_type":"s3","login":"${MINIO_ROOT_USER}","password":"${MINIO_ROOT_PASSWORD}","extra":{"endpoint_url":"http://${MINIO_HOST}"}}
+      # API
+      - AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY}
+      # API Auth
+      - AIRFLOW__API_AUTH__JWT_SECRET=${AIRFLOW_TMP_JWT_OVERRIDE}
+      # Additional Env Vars for Services
+      - s3_access_key=${MINIO_ROOT_USER}
+      - s3_secret_key=${MINIO_ROOT_PASSWORD}
+      - s3_endpoint_url=http://${MINIO_HOST}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
-      # Connection Pools
-      - AIRFLOW__POOLS__DATABASE_POOL=5
-      # Logging
-      - AIRFLOW__LOGGING__REMOTE_LOGGING=True
-      - AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://airflow-logs
-      - AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=minio_logs
-      - AIRFLOW_CONN_MINIO_LOGS={"conn_type":"s3","login":"${MINIO_ROOT_USER}","password":"${MINIO_ROOT_PASSWORD}","extra":{"endpoint_url":"http://${MINIO_HOST}"}}
-      # Log serving via workers
-      - AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT=8793
-      # S3 Creds
-      - s3_access_key=${MINIO_ROOT_USER}
-      - s3_secret_key=${MINIO_ROOT_PASSWORD}
-      - s3_endpoint_url=http://${MINIO_HOST}
     volumes:
       - csv_data:/opt/airflow/data
     command: airflow scheduler
@@ -62,32 +56,29 @@ services:
       - redis
       - timescaledb
     environment:
-      - AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-webserver:8080/execution/
-      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
+      # Executor Config (Celery)
       - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
       - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
-      - AIRFLOW__CELERY__WORKER_CONCURRENCY=4
-      - AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY}
-      - AIRFLOW__API_AUTH__JWT_SECRET=${AIRFLOW_TMP_JWT_OVERRIDE}
+      # Airflow Core
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
-      # DB Params
+      - AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-webserver:8080/execution/
+      # Database
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      # Logging
+      - AIRFLOW_CONN_MINIO_LOGS={"conn_type":"s3","login":"${MINIO_ROOT_USER}","password":"${MINIO_ROOT_PASSWORD}","extra":{"endpoint_url":"http://${MINIO_HOST}"}}
+      # API
+      - AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY}
+      # API Auth
+      - AIRFLOW__API_AUTH__JWT_SECRET=${AIRFLOW_TMP_JWT_OVERRIDE}
+      # Additional Env Vars for Services
+      - s3_access_key=${MINIO_ROOT_USER}
+      - s3_secret_key=${MINIO_ROOT_PASSWORD}
+      - s3_endpoint_url=http://${MINIO_HOST}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
-      # Logging
-      - AIRFLOW__LOGGING__REMOTE_LOGGING=True
-      - AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://airflow-logs
-      - AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=minio_logs
-      - AIRFLOW_CONN_MINIO_LOGS={"conn_type":"s3","login":"${MINIO_ROOT_USER}","password":"${MINIO_ROOT_PASSWORD}","extra":{"endpoint_url":"http://${MINIO_HOST}"}}
-      # Log serving via workers
-      - AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT=8793
-      # S3 Creds
-      - s3_access_key=${MINIO_ROOT_USER}
-      - s3_secret_key=${MINIO_ROOT_PASSWORD}
-      - s3_endpoint_url=http://${MINIO_HOST}
     command: >
       bash -c "airflow celery worker"
     volumes:
