@@ -5,59 +5,30 @@ services:
     ports: ["8080:8080"]
     networks: [platform_network]
     environment:
-      # One-time bootstrap flags (use only on the first run of a fresh DB/image)
-      - _AIRFLOW_DB_MIGRATE=True
-      - _AIRFLOW_WWW_USER_CREATE=True
-      - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_ADMIN_USER}
-      - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
-      - _AIRFLOW_WWW_USER_FIRSTNAME=3Phase
-      - _AIRFLOW_WWW_USER_LASTNAME=Insight
-      - _AIRFLOW_WWW_USER_EMAIL=chris@inilab.dk
-
-      # Core + security (must match across ALL components)
-      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
-      - AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY}
-      - AIRFLOW__API_AUTH__JWT_SECRET=${AIRFLOW_TMP_JWT_OVERRIDE}
-      - AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-webserver:8080/execution/
-
-      # Celery (shared by webserver, scheduler, workers)
+      # Executor Config (Celery)
       - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
       - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
-
-      # Webserver runtime
-      - AIRFLOW__WEBSERVER__WORKERS=1
-      - AIRFLOW__WEBSERVER__WORKER_TIMEOUT=120
-      - AIRFLOW__WEBSERVER__BASE_URL=https://airflow.3pi-dev.io
-      - AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX=True
-
-      # Silence the warnings you saw
-      - AIRFLOW__METRICS__TIMER_UNIT_CONSISTENCY=True
-      - AIRFLOW__WEBSERVER__RATELIMIT_ENABLED=True
-      - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://:${REDIS_PASSWORD}@192.168.42.2:6379/1
-
-      # Scheduler/throughput knobs (these affect the whole deployment, not just web)
-      - AIRFLOW__POOLS__DATABASE_POOL=3
-      - AIRFLOW__CORE__PARALLELISM=2
-      - AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY=8
-      - AIRFLOW__SCHEDULER__MAX_ACTIVE_RUNS_PER_DAG=1
-
-      # Quality-of-life
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__LOGGING__REMOTE_LOGGING=True
-      - AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://airflow-logs
-      - AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=minio_logs
+      # Airflow Core
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
+      - AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-webserver:8080/execution/
+      # Database
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      # Logging
       - AIRFLOW_CONN_MINIO_LOGS={"conn_type":"s3","login":"${MINIO_ROOT_USER}","password":"${MINIO_ROOT_PASSWORD}","extra":{"endpoint_url":"http://${MINIO_HOST}"}}
-      # Important: disable log serving via workers
-      - AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT=0
-      - AIRFLOW__LOGGING__TASK_LOG_READER=task
-      - AIRFLOW__LOGGING__REMOTE_HANDLERS=airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
+      # API
+      - AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY}
+      # API Auth
+      - AIRFLOW__API_AUTH__JWT_SECRET=${AIRFLOW_TMP_JWT_OVERRIDE}
 
-      # S3 Creds
+      # Additional Env Vars for Services
       - s3_access_key=${MINIO_ROOT_USER}
       - s3_secret_key=${MINIO_ROOT_PASSWORD}
       - s3_endpoint_url=http://${MINIO_HOST}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
 
     deploy:
       replicas: 1

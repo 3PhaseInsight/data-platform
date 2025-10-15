@@ -19,6 +19,7 @@ apache-airflow-providers-amazon
 lz4
 toolz==0.12.0
 tornado
-msgpack
+msgpack==1.1.1
 xxhash==3.5.0
 graphviz
+Flask-AppBuilder
