@@ -1,5 +1,5 @@
 # "custom" package
-3phi-framework==0.1.8.dev73+pr.8.shad3252c4c
+3phi-framework==0.1.8.dev73+pr.8.shad3252c4c #this is build from the branch "linter-and-formatter-in-pipeline"
 # regular packages
 s3fs
 pyarrow
