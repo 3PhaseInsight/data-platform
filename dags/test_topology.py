@@ -1,18 +1,17 @@
+import logging
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from dask.distributed import Client, get_client
-from threephi_framework import TopologyIngestor
+
+import threephi_framework.db.db as threephi_db
+from threephi_framework.controllers.topology import TopologyController
 
 def test_topology():
-    ingestor = TopologyIngestor(
-        "/opt/airflow/data/lv_topology.csv",
-        "/opt/airflow/data/meter_cabinet_connection.csv"
-    )
-    # query meters for substation
-    meters = ingestor.db_connector.get_meters_for_substation(147237)
-    print(meters)
+    topology_controller = TopologyController(threephi_db.new_session)
+    meters = topology_controller.get_meters_for_substation("14066")
+    logging.info(f"Meters: {meters}")
 
 # Default DAG args
 default_args = {
