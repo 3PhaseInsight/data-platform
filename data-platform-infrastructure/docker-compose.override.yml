@@ -1,5 +1,4 @@
 services:
-
   timescaledb:
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1" ]
@@ -8,11 +7,11 @@ services:
       retries: 60
       start_period: 10s
     volumes:
-      - ../volumes/timescale:/var/lib/postgresql/data
+      - local_timescale_data:/var/lib/postgresql/data
 
   minio:
     volumes:
-      - ./volumes/minio:/data
+      - local_minio_data:/data
 
   sqitch-runner:
     image: sqitch/sqitch
@@ -24,10 +23,14 @@ services:
       timescaledb:
         condition: service_healthy
     volumes:
-      - ./data-platform-infrastructure/sqitch:/sqitch
+      - ./data-platform-infrastructure/sqitch:/sqitch:ro
     networks:
       - platform_network
     entrypoint: [ "bash", "-lc" ]
     command: >
       "ls && ./create-db-user.sh ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} $${ROLE} $${ROLE_PW} ${POSTGRES_DB}
       && ./sqitch-deploy.sh ${POSTGRES_HOST}:${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} ${POSTGRES_DB}"
+
+volumes:
+  local_timescale_data: {}
+  local_minio_data: {}
