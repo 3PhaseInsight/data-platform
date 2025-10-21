@@ -23,6 +23,9 @@ ALTER FUNCTION public.set_updated_at() OWNER TO postgres;
 SET default_tablespace = '';
 SET default_table_access_method = heap;
 
+-- Airflow Schema
+CREATE SCHEMA IF NOT EXISTS airflow;
+
 -- =========================
 -- Tables
 -- =========================
