@@ -8,11 +8,27 @@ services:
       retries: 60
       start_period: 10s
     volumes:
-      - ../volumes/timescale:/var/lib/postgresql/data
+      - local_timescale_data:/var/lib/postgresql/data
 
   minio:
     volumes:
       - ./volumes/minio:/data
+
+  minio_createbuckets:
+    image: alpine
+    depends_on:
+      - minio
+    networks:
+      - platform_network
+    command: >
+      sh -c "
+      apk --no-cache add curl &&
+      curl --progress-bar -L https://dl.min.io/aistor/mc/release/linux-arm64/mc --create-dirs -o ~/binaries/mc &&
+      chmod +x ~/binaries/mc &&
+      ~/binaries/mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      ~/binaries/mc mb minio/3phi && 
+      ~/binaries/mc mb minio/airflow-logs
+      "
 
   sqitch-runner:
     image: sqitch/sqitch
@@ -31,3 +47,6 @@ services:
     command: >
       "ls && ./create-db-user.sh ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} $${ROLE} $${ROLE_PW} ${POSTGRES_DB}
       && ./sqitch-deploy.sh ${POSTGRES_HOST}:${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} ${POSTGRES_DB}"
+
+volumes:
+  local_timescale_data:
