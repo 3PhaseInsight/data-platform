@@ -14,6 +14,7 @@ services:
     container_name: airflow-scheduler
     restart: always
     depends_on:
+      - airflow-webserver
       - redis
       - timescaledb
     environment:
@@ -53,6 +54,7 @@ services:
     container_name: airflow-worker
     restart: always
     depends_on:
+      - airflow-webserver
       - redis
       - timescaledb
     environment:
@@ -133,12 +135,8 @@ services:
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
-      # Volume settings
-      # - DASK_TEMPORARY_DIRECTORY=/dask-scratch/worker
-      # - TMPDIR=/dask-scratch/worker
     volumes:
       - csv_data:/opt/airflow/data
-      # - /mnt/storage/dask-scratch/worker:/dask-scratch/worker
     networks:
       - platform_network
     mem_limit: 2G
