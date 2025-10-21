@@ -10,18 +10,18 @@ services:
   airflow-scheduler:
     image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     volumes:
-      - ${DAGS_DIR:-./dags}:/opt/airflow/dags
-      - ./volumes/airflow_logs:/opt/airflow/logs
-      - ./data:/opt/airflow/data
+      - dags_volume:/opt/airflow/dags
+      - ./data:/opt/airflow/data:ro
+      - airflow_logs:/opt/airflow/logs
     environment:
       - AIRFLOW__API__BASE_URL=http://localhost:8080
 
   airflow-worker:
     image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     volumes:
-      - ${DAGS_DIR:-./dags}:/opt/airflow/dags
-      - ./volumes/airflow_logs:/opt/airflow/logs
-      - ./data:/opt/airflow/data
+      - dags_volume:/opt/airflow/dags
+      - ./data:/opt/airflow/data:ro
+      - airflow_logs:/opt/airflow/logs
     environment:
       - AIRFLOW__API__BASE_URL=http://localhost:8080
 
@@ -32,19 +32,26 @@ services:
       dockerfile: Dockerfile.dask
       secrets:
         - pip_conf
-    environment:
+#    environment:
       # Volume settings
-      - DASK_TEMPORARY_DIRECTORY=/dask-scratch/scheduler
-      - TMPDIR=/dask-scratch/scheduler
+#      - DASK_TEMPORARY_DIRECTORY=/dask-scratch/scheduler
+#      - TMPDIR=/dask-scratch/scheduler
     ports:
       - "8786:8786"
       - "8787:8787"
     volumes:
-      - ./data:/opt/airflow/data
-      - ./volumes/dask-scratch/scheduler:/dask-scratch/scheduler
+      - ./data:/opt/airflow/data:ro
 
   dask-worker:
     image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}
     volumes:
-      - ./data:/opt/airflow/data
-      # - ./volumes/dask-scratch/worker:/dask-scratch/worker
+      - ./data:/opt/airflow/data:ro
+
+volumes:
+  airflow_logs:
+  dags_volume:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${DAGS_DIR:-../dags}
+      o: bind

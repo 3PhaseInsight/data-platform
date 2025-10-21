@@ -14,11 +14,13 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt
+COPY requirements-extra.txt /requirements-extra.txt
 
 # Install Python deps as root; read private index from BuildKit secret
 RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
     python -m pip install -U pip && \
-    pip install --no-cache-dir -r /tmp/requirements.txt --constraint "${CONSTRAINT_URL}"
+    pip install --no-cache-dir -r /tmp/requirements.txt --constraint "${CONSTRAINT_URL}" && \
+    pip install --no-cache-dir -r /requirements-extra.txt
 
 # Drop privileges for runtime
 ARG DASK_UID=1000 DASK_GID=1000

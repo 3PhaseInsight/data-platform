@@ -1,5 +1,4 @@
 services:
-
   timescaledb:
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1" ]
@@ -12,7 +11,7 @@ services:
 
   minio:
     volumes:
-      - ./volumes/minio:/data
+      - local_minio_data:/data
 
   minio_createbuckets:
     image: alpine
@@ -49,4 +48,5 @@ services:
       && ./sqitch-deploy.sh ${POSTGRES_HOST}:${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} ${POSTGRES_DB}"
 
 volumes:
-  local_timescale_data:
+  local_timescale_data: {}
+  local_minio_data: {}
