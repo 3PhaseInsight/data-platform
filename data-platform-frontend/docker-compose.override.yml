@@ -12,5 +12,5 @@ services:
     environment:
       - AIRFLOW__API__BASE_URL=http://localhost:8080
     volumes:
-      - ${DAGS_DIR:-../dags}:/opt/airflow/dags
-      - ../volumes/airflow_logs:/opt/airflow/logs
+      - dags_volume:/opt/airflow/dags
+      - airflow_logs:/opt/airflow/logs

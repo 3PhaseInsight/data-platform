@@ -1,6 +1,16 @@
 services:
+  airflow-migrate:
+    image: ${CI_REGISTRY_IMAGE}/airflow:${IMAGE_TAG}
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    command: airflow db migrate
+
   airflow-webserver:
     image: ${CI_REGISTRY_IMAGE}/airflow:${IMAGE_TAG}
+    depends_on:
+      airflow-migrate:
+        condition: service_completed_successfully
     command: airflow api-server
     ports: ["8080:8080"]
     networks: [platform_network]
