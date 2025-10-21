@@ -1,4 +1,4 @@
-# "custom" package
+# custom package
 3phi-framework==0.2.0
 # regular packages
 s3fs
