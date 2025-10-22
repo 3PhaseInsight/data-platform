@@ -22,7 +22,7 @@ services:
     command: >
       sh -c "
       apk --no-cache add curl &&
-      curl --progress-bar -L https://dl.min.io/aistor/mc/release/linux-arm64/mc --create-dirs -o ~/binaries/mc &&
+      curl -L https://dl.min.io/aistor/mc/release/linux-arm64/mc --create-dirs -o ~/binaries/mc &&
       chmod +x ~/binaries/mc &&
       ~/binaries/mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
       ~/binaries/mc mb minio/3phi && 
