@@ -11,7 +11,7 @@ services:
     image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     volumes:
       - dags_volume:/opt/airflow/dags
-      - ./data:/opt/airflow/data:ro
+      - local_data:/opt/airflow/data
       - airflow_logs:/opt/airflow/logs
     environment:
       - AIRFLOW__API__BASE_URL=http://localhost:8080
@@ -20,7 +20,7 @@ services:
     image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
     volumes:
       - dags_volume:/opt/airflow/dags
-      - ./data:/opt/airflow/data:ro
+      - local_data:/opt/airflow/data
       - airflow_logs:/opt/airflow/logs
     environment:
       - AIRFLOW__API__BASE_URL=http://localhost:8080
@@ -32,20 +32,16 @@ services:
       dockerfile: Dockerfile.dask
       secrets:
         - pip_conf
-#    environment:
-      # Volume settings
-#      - DASK_TEMPORARY_DIRECTORY=/dask-scratch/scheduler
-#      - TMPDIR=/dask-scratch/scheduler
     ports:
       - "8786:8786"
       - "8787:8787"
     volumes:
-      - ./data:/opt/airflow/data:ro
+      - local_data:/opt/airflow/data:ro
 
   dask-worker:
     image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}
     volumes:
-      - ./data:/opt/airflow/data:ro
+      - local_data:/opt/airflow/data
 
 volumes:
   airflow_logs:
@@ -54,4 +50,10 @@ volumes:
     driver_opts:
       type: none
       device: ${DAGS_DIR:-../dags}
+      o: bind
+  local_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./data
       o: bind
