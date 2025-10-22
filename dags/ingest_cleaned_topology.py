@@ -3,7 +3,8 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from dask.distributed import Client, get_client
-from threephi_framework import TopologyIngestor
+import threephi_framework.db.db as threephi_db
+from threephi_framework.controllers.topology import TopologyController
 
 def ingest_topology():
     # Set up dask client
@@ -11,18 +12,16 @@ def ingest_topology():
         get_client()
     except ValueError:
         Client("tcp://dask-scheduler:8786")
-    ingestor = TopologyIngestor(
-        "/opt/airflow/data/lv_topology.csv",
-        "/opt/airflow/data/meter_cabinet_connection.csv"
-    )
+
+    topology_controller = TopologyController(threephi_db.new_session)
     # read and clean topology
-    topology_ddf = ingestor.read_topology()
-    topology_ddf = ingestor.clean_topology_dask(topology_ddf)
+    topology_ddf = topology_controller.read_topology("/opt/airflow/data/lv_topology.csv")
+    # topology_ddf = ingestor.clean_topology_dask(topology_ddf)
     # read and clean sm_cab
-    sm_cab_ddf = ingestor.read_sm_cab()
-    sm_cab_ddf = ingestor.clean_meter_and_cabinet_connection_dask(sm_cab_ddf)
+    sm_cab_ddf = topology_controller.read_sm_cab("/opt/airflow/data/meter_cabinet_connection.csv")
+    # sm_cab_ddf = ingestor.clean_meter_and_cabinet_connection_dask(sm_cab_ddf)
     # store in DB
-    ingestor.topology_to_db(topology_ddf, sm_cab_ddf)
+    topology_controller.ingest(topology_ddf, sm_cab_ddf)
 
 # Default DAG args
 default_args = {

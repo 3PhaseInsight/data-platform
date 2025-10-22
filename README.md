@@ -83,10 +83,16 @@ make up
 This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created named threephi_db_user. This user will be used by the other services when they interact with the database. At last, the database will be initialized with the necessary schemas & tables.
 
 #### 5. Create MinIO buckets
-You should have the database containers running in Docker now. From the Containers tab in the Docker desktop app, press the link '19000:9000' belonging to the pin 'minio' (alternatively, open your browser and enter `localhost: 19001`). This should open the MinIO Console in your browser. Login using credentials from the .env-file (e.g. user: minioadmin; password: minioadmin). Create two buckets using the 'Create Bucket' button. Name the first bucket `3phi`. It will hold the ingested timeseries data in parquet files. Name the second bucket `airflow-logs`. It will hold the logs from scripts executed as DAGs via Airflow.
+Open the MinIO Console at http://localhost:19001 (or in Docker Desktop, click the minio container’s Console port). Sign in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env` (defaults: `minioadmin` / `minioadmin`). Create these buckets:
+- `3phi` — ingested timeseries parquet files
+- `airflow-logs` — Airflow task logs
 
 #### 6. Access the Airflow UI
-From the Containers tab in the Docker desktop app, press the link '8080:8080' belonging to the pin 'Airflow-webserver-1' (alternatively, open your browser and enter `localhost: 8080`). This should open the airflow UI in your browser, from where you can run the DAGs. Now, run your first DAG (gosh 🤗).
+Open http://localhost:8080 (or click `8080:8080` in Docker Desktop for the Airflow webserver). Retrieve the admin password from the webserver logs at Docker Desktop → Airflow-webserver → Logs. Look for:
+```
+Simple auth manager | Password for user 'admin': <16-character-password>
+```
+First run: reserialize DAGs so they appear by running `airflow dags reserialize` at Docker Desktop → Airflow-webserver → Exec.
 
 ## Custom Docker Images
 

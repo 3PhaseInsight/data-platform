@@ -13,4 +13,7 @@ DROP TABLE IF EXISTS public.workflow_states CASCADE;
 -- Drop helper function
 DROP FUNCTION IF EXISTS public.set_updated_at();
 
+-- Drop airflow schema
+DROP SCHEMA IF EXISTS airflow CASCADE;
+
 COMMIT;
