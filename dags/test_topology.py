@@ -7,7 +7,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime
 
 import threephi_framework.db.db as threephi_db
-from threephi_framework.controllers.topology import TopologyController
+from threephi_framework import TopologyController
 from threephi_framework import DataApp
 
 
