@@ -24,7 +24,9 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 -- Airflow Schema
-CREATE SCHEMA IF NOT EXISTS airflow;
+CREATE SCHEMA IF NOT EXISTS airflow AUTHORIZATION postgres;
+GRANT USAGE, CREATE ON SCHEMA airflow TO postgres;
+ALTER ROLE postgres IN DATABASE "3phi-db" SET search_path = airflow, public;
 
 -- =========================
 -- Tables
