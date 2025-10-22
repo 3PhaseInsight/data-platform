@@ -7,7 +7,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime
 
 import threephi_framework.db.db as threephi_db
-from threephi_framework.controllers.topology import TopologyController
+from threephi_framework import TopologyController
 from threephi_framework import DataApp
 
 
@@ -18,9 +18,13 @@ class TopologyTester(DataApp):
         self.topology_controller = TopologyController(threephi_db.new_session)
 
     def run(self):
+        # Test get_meters_for_substation
         meters = self.topology_controller.get_meters_for_substation(self.substation_id)
         logging.info(f"Meters for substation {self.substation_id}: {meters}")
 
+        # Test get_meters
+        meters2 = self.topology_controller.get_meters(True, True)
+        logging.info(f"get_meters(has_heat_pump=True, has_solar_panel=True): {meters2}")
 
 config_file = "test_topology.yaml"
 with open(
