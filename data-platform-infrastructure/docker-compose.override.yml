@@ -14,20 +14,18 @@ services:
       - local_minio_data:/data
 
   minio_createbuckets:
-    image: alpine
+    image: minio/mc:latest
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     networks:
       - platform_network
+    entrypoint: ["sh", "-c"]
     command: >
-      sh -c "
-      apk --no-cache add curl &&
-      curl --progress-bar -L https://dl.min.io/aistor/mc/release/linux-arm64/mc --create-dirs -o ~/binaries/mc &&
-      chmod +x ~/binaries/mc &&
-      ~/binaries/mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
-      ~/binaries/mc mb minio/3phi && 
-      ~/binaries/mc mb minio/airflow-logs
-      "
+      "mc alias set minio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD &&
+      mc mb --ignore-existing minio/3phi &&
+      mc mb --ignore-existing minio/airflow-logs"
+    restart: "no"
 
   sqitch-runner:
     image: sqitch/sqitch
@@ -39,7 +37,7 @@ services:
       timescaledb:
         condition: service_healthy
     volumes:
-      - ./data-platform-infrastructure/sqitch:/sqitch
+      - local_sqitch:/sqitch
     networks:
       - platform_network
     entrypoint: [ "bash", "-lc" ]
@@ -50,3 +48,9 @@ services:
 volumes:
   local_timescale_data: {}
   local_minio_data: {}
+  local_sqitch:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./data-platform-infrastructure/sqitch
+      o: bind
