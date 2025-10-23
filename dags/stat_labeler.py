@@ -21,163 +21,38 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from dask.distributed import Client, get_client
-from threephi_framework import TopologyIngestor
-from threephi_framework import DataExtractor
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
+from threephi_framework import DataApp
+from threephi_framework import DataExtractor
+import threephi_framework.db.db as threephi_db
+from threephi_framework import TypologyController
 
 class StatLabeler(DataApp):
 
-    # Some constant parameters
-    StatLabeler_dir = os.path.dirname(os.path.abspath(__file__))
-
     # Initialization method which is automatically called when creating an instance of this class
-    def super().__init__(self, config, data_extractor=None):
+    def __init__(self, config):
 
-        # Unpack the config
-        self.batch = config.get('Data_batch')
+        # Set up the config settings from the parent class
+        # set up batch, profile_processing_level, result_name, dask client, logger, and data extractor
+        super().__init__(config)
+
+        # Set up the local config settings
         self.use_ANOVA = config.get('use_ANOVA', True)
         self.label_summerhouse = config.get('label_summerhouse', True)
         self.process_only_sm_with_hp = config.get('process_only_sm_with_hp', False)
         self.use_dask = config.get("Use_dask")
         self.save_results = config.get('save_results', True)
         self.n_workers = config["Cluster_settings"]["n_workers"]
-        self.DataExtractor = data_extractor
-        self.TypologyCleaner = config.get('TypologyCleaner', None)
         self.tc_cfg = {**config["TopologyCleaner"], "Data_batch": config["Data_batch"], "Use_dask": config["Use_dask"]}
         self.sm_ids = config.get('sm_ids', None)
         self.overwrite_existing_results = config.get('overwrite_existing_results', False)
-        self.meter_and_cabinet_df = None
-        self.weather_df = None
         self.save_meta_results = config.get('save_meta_results', False)
         self.save_plots = config.get('save_plots', False)
         self.filter_data = config.get('filter_data', True)
-
-        # Constants attributes
-        ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        DIR_DATA_APP = os.path.dirname(os.path.abspath(__file__))
-
-        # Configure the logger if not already configured
-        if not logging.getLogger().hasHandlers():
-            logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-        # Set up the cluster
-        if self.use_dask:
-            try:
-                get_client()
-            except ValueError:
-                cluster = self._set_up_cluster(config["Cluster"], config["Cluster_settings"])
-                client = Client(cluster)
+        self.topology_controller = TypologyController(threephi_db.new_session)
+        self.weather_file = "/opt/airflow/data/weather_data.csv"
+        self.results_dir = "/opt/airflow/data/stat_labeler/"
         
-        # Load Data Extractor if not provided
-        if not self.DataExtractor:
-            from nils_data_extractor.data_extractor import DataExtractor
-            self.DataExtractor = DataExtractor(batch=self.batch, use_dask=self.use_dask)
-
-        # Load Typology Cleaner if not provided
-        if not self.TypologyCleaner:
-            from mattia_topology_cleaning.topology_cleaning import TopologyCleaner
-            self.TypologyCleaner = TopologyCleaner(self.tc_cfg, self.DataExtractor)
-
-        # Define correct file and column names depending on the data batch
-        if self.batch == "first_batch":
-            self.meter_number_col = "METER_NUMBER"
-            self.timestamp_dst_col = "TIMESTAMP_DST"
-            self.cabinet_col = "CABINET"
-            self.sec_substation_col = "SECONDARY_SUBSTATION"
-            self.transformer_col = "TRANSFORMER"
-            self.lv_feeder_col = "LV_FEEDER"
-            self.node_1_col = "NODE1"
-            self.node_2_col = "NODE2"
-            self.voltage_col = "VOLTAGE_L"
-            self.current_col = "CURRENT_L"
-            self.active_power_p14_col = "ACTIVE_POWER_P14_L"
-            self.active_power_p23_col = "ACTIVE_POWER_P23_L"
-            self.reactive_power_q12_col = "REACTIVE_POWER_Q12_L"
-            self.reactive_power_q34_col = "REACTIVE_POWER_Q34_L"
-            self.v_phase_unbalance_col = "V_UNBALANCE_L"
-            self.v_unbalance_col = "V_UNBALANCE"
-            self.i_phase_unbalance_col = "I_UNBALANCE_L"
-            self.i_unbalance_col = "I_UNBALANCE"
-            self.transformer_capacity_col = "TRANSFORMER_CAPACITY"
-            self.lv_feeder_fuse_size_col = "LV_FEEDER_FUSE_SIZE"
-            self.cable_id_col = "LV_CABLE"
-            self.cable_type_col = "CABLETYPE"
-            self.cable_length_col = "CABLE_LENGTH"
-            self.phase_size_col = "PHASESIZE"
-            self.phase_material_col = "PHASEMATERIAL"
-            self.cable_capacity_col = "CURRENT_CARRYING_CAPACITY_PIPE"
-            self.resistance_col = "RESISTANCE"
-            self.reactance_col = "REACTANCE"
-            self.metercabinet_file = "MeterAndCabinet.csv"
-            self.topology_file = "Topology.csv"
-            self.cabinet_name = 'LowVoltageDistributionBox'
-
-        else:
-            self.meter_number_col = "meter_number"
-            self.timestamp_dst_col = "timestamp_dst"
-            self.cabinet_col = "cabinet"
-            self.sec_substation_col = "secondary_substation"
-            self.transformer_col = "transformer"
-            self.lv_feeder_col = "lv_feeder"
-            self.node_1_col = "node1"
-            self.node_2_col = "node2"
-            self.voltage_col = "voltage_l"
-            self.current_col = "current_l"
-            self.active_power_p14_col = "active_power_p14_l"
-            self.active_power_p23_col = "active_power_p23_l"
-            self.reactive_power_q12_col = "reactive_power_q12_l"
-            self.reactive_power_q34_col = "reactive_power_q34_l"
-            self.v_phase_unbalance_col = "v_unbalance_l"
-            self.v_unbalance_col = "v_unbalance"
-            self.i_phase_unbalance_col = "i_unbalance_l"
-            self.i_unbalance_col = "i_unbalance"
-            self.transformer_capacity_col = "transformer_capacity"
-            self.lv_feeder_fuse_size_col = "lv_feeder_fuse_size"
-            self.cable_id_col = "cable_id"
-            self.cable_type_col = "cable_type"
-            self.cable_length_col = "cable_length"
-            self.phase_size_col = "phase_size"
-            self.phase_material_col = "phase_material"
-            self.cable_capacity_col = "cable_capacity"
-            self.resistance_col = "resistance"
-            self.reactance_col = "reactance"
-            self.metercabinet_file = "meter_cabinet_connection.csv"
-            self.topology_file = "lv_topology.csv"
-            self.cabinet_name = 'Cabinet'
-            self.weather_file = "weather_data.csv"
-
-        self.meter_and_cabinet_dtypes = {self.meter_number_col: pd.StringDtype(),
-                                        self.cabinet_col: pd.StringDtype(),
-                                        **({"delivery_point_id": pd.StringDtype(),
-                                            "lv_feeder": pd.StringDtype(),
-                                            "has_heat_pump": pd.BooleanDtype(),
-                                            "has_solar_panel": pd.BooleanDtype(),
-                                            "capacity_solar_panel": pd.Float32Dtype(),
-                                            "service_fuse_size": pd.Float32Dtype()}
-                                        if self.batch == "second_batch" else {})}
-        
-        self.topology_dtypes = {self.sec_substation_col: pd.StringDtype(),
-                        self.transformer_col: pd.StringDtype(),
-                        self.transformer_capacity_col: pd.Float32Dtype(),
-                        self.lv_feeder_col: pd.StringDtype(),
-                        self.lv_feeder_fuse_size_col: pd.Float32Dtype(),
-                        self.node_1_col: pd.StringDtype(),
-                        self.node_2_col: pd.StringDtype(),
-                        self.cable_id_col: pd.StringDtype(),
-                        self.cable_type_col: pd.StringDtype(),
-                        self.cable_length_col: pd.Float32Dtype(),
-                        self.phase_size_col: pd.Float32Dtype(),
-                        self.phase_material_col: pd.StringDtype(),
-                        self.cable_capacity_col: pd.Float32Dtype(),
-                        self.resistance_col: pd.Float32Dtype(),
-                        self.reactance_col: pd.Float32Dtype(),
-                        **({"zip_code_secondary_substation": pd.StringDtype()}
-                            if self.batch == "second_batch" else {})}
-        
-        self.weather_dtypes = {**({"DateTime": pd.StringDtype(),
-                                    "T": pd.Float32Dtype(),}
-                            if self.batch == "second_batch" else {})}
         
         self.thresholds = {"weekly_change": 0.01,
                         "static_days": 0.4,
@@ -186,63 +61,19 @@ class StatLabeler(DataApp):
                         "min_bins": 1,
                         "filter_temp": 3,
                         "anova_pvalue": 0.01,}
-
+        
     # Method to update config settings via the method arguments
     def _update_config(self, args):
         for arg_name, arg_value in args:
             if arg_name != 'self' and arg_value is not None:
                 setattr(self, arg_name, arg_value)
 
-    # Method to st up the cluster in case Dask is used
-    @staticmethod
-    def _set_up_cluster(cluster_name: str, cluster_settings: dict):
-        cluster_class_paths = {"LocalCluster": "dask.distributed",
-                               "SSHCluster": "dask.distributed",
-                               "KubeCluster": "dask_kubernetes",}
-        if cluster_name is None:
-            return None
-        if cluster_name not in cluster_class_paths:
-            raise ValueError(f"Unsupported cluster type: {cluster_name}")
-        module_name = cluster_class_paths[cluster_name]
-        module = importlib.import_module(module_name)
-        ClusterClass = getattr(module, cluster_name)
-        return ClusterClass(**cluster_settings)
-
-
-    def _load_weather_data(self):
-
-        path_weather = os.path.join(self.DataExtractor.sourcedata_dir, "external_data", self.weather_file)
-        if os.path.exists(path_weather):
-            self.weather_df = pd.read_csv(path_weather, dtype=self.weather_dtypes, parse_dates=["DateTime"])
-            self.weather_df["DateTime"] = pd.to_datetime(self.weather_df["DateTime"], dayfirst=True, utc=True)
-            self.weather_df.set_index("DateTime", inplace=True)
-
-        else:
-            raise ValueError(f"Weather data file not found")
-
-    def _load_cleaned_meter_and_cabinet(self):
-        path_cleaned = os.path.join(self.DataExtractor.processed_data_dir, "topology", "cleaned")
-        os.makedirs(path_cleaned, exist_ok=True)
-        path_cleaned_mac = os.path.join(path_cleaned, self.metercabinet_file)
-
-        if os.path.exists(path_cleaned_mac):
-            self.meter_and_cabinet_df = pd.read_csv(path_cleaned_mac, dtype=self.meter_and_cabinet_dtypes)
-            self.meter_and_cabinet_df.set_index('meter_number', inplace=True)
-            self.meter_and_cabinet_df = self.meter_and_cabinet_df['has_heat_pump']
-
-        else:
-            logging.info("Cleaned topology and meter and cabinet file not found. Loading raw files from DataExtractor and cleaning...")
-            self.TypologyCleaner.clean_topology_files(save_results=True)
-            self.meter_and_cabinet_df = pd.read_csv(path_cleaned_mac, dtype=self.meter_and_cabinet_dtypes)
-            self.meter_and_cabinet_df.set_index('meter_number', inplace=True)
-            self.meter_and_cabinet_df = self.meter_and_cabinet_df['has_heat_pump']     
-
+    # Method to check for previous results in earlier results files
     def _check_previous_results(self, earlier_results_paths, sm_id, heat_pump_returns):
         sm_str = str(sm_id)
         for results_path in earlier_results_paths:
             try:
-                with open(results_path, 'r') as f:
-                    results_data = json.load(f)
+                results_data = self.data_extractor.s3_connector.read_json(results_path)
                 if sm_str in results_data:
                     heat_pump_returns[sm_id] = results_data[sm_str]
                     logging.info(f"Label results of {sm_id} already exists in earlier results. Loading existing results.")
@@ -252,6 +83,7 @@ class StatLabeler(DataApp):
                 continue     
         return heat_pump_returns, True
 
+    # Method to label a smart meter as summerhouse or not
     def _label_summerhouse(self, sm_df, sm_id, meta_results):
 
         sm_df_filtered = self._filter_data(sm_df)
@@ -309,6 +141,7 @@ class StatLabeler(DataApp):
             
             return meta_results
 
+    # Method to plot the smart meter data
     def _plot_sm(self, sm_id, sm_df, savedir, filename=None):
     
         plt.clf() # Clear any previous plot
@@ -323,6 +156,7 @@ class StatLabeler(DataApp):
         plt.legend()
         plt.savefig(os.path.join(savedir, f"sm_{sm_id}" + f"_{filename}.png" if filename else ".png"))
 
+    # Method to get the base load and temperature bins
     def _get_base_load_and_temperature_bins(self, sm_df):
         
         # Assume the base load is the minimum load of a specific temperature bin
@@ -386,6 +220,7 @@ class StatLabeler(DataApp):
 
         return load_base_list, tmin_list, n_bins
 
+    # Method to get the thermal priors
     def _get_priors(self, dfl, dfb, nsamples=1000, maxstep=4000, step=40, tmin = list(range(12)), nT=12):
         
         # Get thermal priors by sampling parameters of a truncated normal distribution
@@ -460,7 +295,8 @@ class StatLabeler(DataApp):
         thermal_prior /= thermal_prior.sum(axis=0)
         
         return thermal_prior
-    
+
+    # Method to get the posterior distribution
     def _get_posterior(self, prior, phase, maxstep, step, sm_df, tmin, nT=12):
 
         # Set up the likelihood, by counting the occurrences of the load at different hours of the day and temperature bins
@@ -493,6 +329,7 @@ class StatLabeler(DataApp):
 
         return posterior
     
+    # Method to get the thermal prior distributions
     def _get_thermal_prior(self, sm_df, tmin_list, n_bins):
         
         # Get the thermal prior distribution for each phase
@@ -525,6 +362,7 @@ class StatLabeler(DataApp):
         
         return thermal_prior_list, maxstep_list, step_list
     
+    # Method to get the thermal posterior distributions and sample thermal loads
     def _get_thermal_posterior(self, thermal_prior_list, maxstep_list, step_list, sm_df, tmin_list, n_bins):
         
         # Get the thermal posteriors
@@ -561,7 +399,8 @@ class StatLabeler(DataApp):
                 post_thermal_load.append(series)
             
         return post_thermal_load
-
+    
+    # Method to update the meter table with heat pump and solar panel information
     def _calculate_temperature_linearity(self, sm_df, post_thermal_load, maxstep_list):
         
         # Filter for low temperature days
@@ -622,7 +461,8 @@ class StatLabeler(DataApp):
                                 heat_pump[phase] = True
 
         return heat_pump, hp_indicators, slopelist, interceptlist, maxslopelist
-
+    
+    # Method to get the ANOVA results
     def _get_anova_results(self, sm_df, post_thermal_load):
 
         # Prepare the data for ANOVA analysis
@@ -646,6 +486,7 @@ class StatLabeler(DataApp):
         anova_results = anova_lm(model, typ=2)
         return anova_results
     
+    # Method to calculate the MAE and relative MAE
     def _calculate_mae(self, sm_df, post_thermal_load, loadb_list):
         # Compute the MAE and relative MAE between the post_thermal_load and the base load
         total_load = [post_thermal_load[phase] + loadb_list[phase] for phase in range(3)]
@@ -657,6 +498,7 @@ class StatLabeler(DataApp):
         
         return mae_list, maer_list
     
+    # Method to filter the smart meter data based on weekly changes
     def _filter_data(self, sm_df):
         weekly_mean = sm_df.resample('W').mean()
         weeks_to_keep = weekly_mean[weekly_mean.pct_change().abs().mean(axis=1) > self.thresholds['weekly_change']].index
@@ -680,19 +522,16 @@ class StatLabeler(DataApp):
 
         self.sm_ids = [str(sm_id) for sm_id in self.sm_ids]
 
-        # If the Result dir does not exist, create it
-        path_labeled = os.path.join(self.StatLabeler_dir, "Results")
-        os.makedirs(path_labeled, exist_ok=True)
-
         # Find earlier results files in the results directory
-        earlier_results_paths = [os.path.join(path_labeled, f) for f in os.listdir(path_labeled) if "heat_pump_results" in f]
+        earlier_results_paths = [os.path.join(self.results_dir, f) for f in os.listdir(self.results_dir) if "results" in f]
 
         def _label_meters(sm_ids):
 
-            # Load cleaned  meter and cabinet and weather data
-            self._load_cleaned_meter_and_cabinet()
+            # Load heat pump status and weather data
 
-            self._load_weather_data()
+            sm_with_hp = self.topology_controller.get_meters(has_heat_pump=True)
+
+            weather_df = self.data_extractor.s3_connector.read_small_csv(self.weather_file)
 
             # Set up meta results file
             meta_results_chunk = {sm_id: {"Heat_pump_info": [], "Heat_pump_stats": [], 
@@ -706,11 +545,12 @@ class StatLabeler(DataApp):
             # Set up a dictionary to store the heat pump returns. This will NOT include all the new results
             heat_pump_returns = {}
 
-            for sm_id in tqdm(sm_ids, desc="HP Labeling on cleaned profiles of smart meters"):
+            for sm_id in tqdm(sm_ids, desc="HP Labeling on cleaned profiles of smart meters"):    
+
                 logging.info(f"Processing smart meter {sm_id}")
 
                 # If the sm_id does not have a heat pump, skip it
-                if self.process_only_sm_with_hp and not self.meter_and_cabinet_df.loc[sm_id]:
+                if self.process_only_sm_with_hp and not sm_id in sm_with_hp:
                     logging.info(f"Smart meter {sm_id} does not have a heat pump. Skipped.")
                     continue
                 
@@ -723,7 +563,7 @@ class StatLabeler(DataApp):
                         continue
 
                 # Load the cleaned sm data
-                sm_df = self.DataExtractor.load_cleaned_dataset_for_sm(sm_id)
+                sm_df = self.data_extractor.v1_get_single_meter_data(sm_id)
 
                 # Keep only the active power columns
                 sm_df = sm_df[[col for col in sm_df.columns if 'active_power_p14' in col]]
@@ -747,7 +587,7 @@ class StatLabeler(DataApp):
 
                 # Plotting the filtered data
                 if self.save_plots:
-                    self._plot_sm(sm_id, sm_df, path_labeled, filename="filtered")
+                    self._plot_sm(sm_id, sm_df, self.results_dir, filename="filtered")
 
                 # Resample to hourly data
                 sm_df = sm_df.resample('1h').mean(numeric_only=True)
@@ -853,28 +693,49 @@ class StatLabeler(DataApp):
         # Add timestamp to the filename
         now = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
         if self.save_meta_results:
-            with open(os.path.join(path_labeled, f'meta_results_{now}.json'), 'w') as f:
-                json.dump(meta_results_merged, f)
-            with open(os.path.join(path_labeled, f'heat_pump_results_{now}.json'), 'w') as f:
-                json.dump(heat_pump_merged, f)
+            self.data_extractor.s3_connector.write_json(path = self.results_dir + f'meta_results_{now}.json', data = meta_results_merged)
+            self.data_extractor.s3_connector.write_json(path = self.results_dir + f'heat_pump_results_{now}.json', data = heat_pump_merged)
         else:
-            with open(os.path.join(path_labeled, f'heat_pump_results_{now}.json'), 'w') as f:
-                json.dump(heat_pump_merged, f)
+            self.data_extractor.s3_connector.write_json(path = self.results_dir + f'heat_pump_results_{now}.json', data = heat_pump_merged)
 
         return heat_pump_returns
+    
+    def run(self):
+        self.stat_label_sm()
 
 
-if __name__ == "__main__":  # This will only be executed by running this script, not if the class is imported and used
+config_file = "stat_labeler_config.yaml"
 
-    # Define the config file to initiate the data app with
-    config_file = "stat_labeler_config.yaml"
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:
+    pipeline_config = yaml.safe_load(file)
+    statlabeler = StatLabeler(config=pipeline_config)
 
-    # Load config file
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', config_file), 'r') as file:
-        stat_labeler_config = yaml.safe_load(file)
+    # Default DAG args
+    default_args = {
+        "owner": "inilab",
+        "retries": 0,
+        "depends_on_past": False,
+        "email_on_failure": False,
+        "email_on_retry": False,
+    }
 
-    # Set up the Stat Labeler
-    StatLabeler = StatLabeler(config=stat_labeler_config)
+    # Define DAG
+    with DAG(
+        dag_id="statlabeler",
+        description="Locate and label SM phases with heat pumps using statistical methods",
+        default_args=default_args,
+        start_date=datetime.now(),
+        catchup=False,
+        max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
+    ) as dag:
+        stat_labeler_task = PythonOperator(
+            task_id="Label phases of SMs",
+            python_callable=statlabeler.run,
+            doc_md="""
+            ## Label phases of SMs
+            """,
+        )
 
-    # Run the Data App to generate some output
-    heat_pump_results = StatLabeler.stat_label_sm(save_meta_results=True, save_plots=False)
+        stat_labeler_task
+
+    

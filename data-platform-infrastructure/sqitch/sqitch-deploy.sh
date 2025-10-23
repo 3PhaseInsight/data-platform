@@ -1,4 +1,4 @@
-#!/bin/bash
+!/bin/bash
 
 # Usage:
 #   ./sqitch-deploy.sh <host> <user> <password> [<database>]
