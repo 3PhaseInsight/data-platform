@@ -25,7 +25,7 @@ from dask.distributed import Client, get_client
 from threephi_framework import DataApp
 from threephi_framework import DataExtractor
 import threephi_framework.db.db as threephi_db
-from threephi_framework import TypologyController
+from threephi_framework import TopologyController
 
 class StatLabeler(DataApp):
 
@@ -37,6 +37,7 @@ class StatLabeler(DataApp):
         super().__init__(config)
 
         # Set up the local config settings
+        self.data_extractor = DataExtractor()
         self.use_ANOVA = config.get('use_ANOVA', True)
         self.label_summerhouse = config.get('label_summerhouse', True)
         self.process_only_sm_with_hp = config.get('process_only_sm_with_hp', False)
@@ -49,10 +50,9 @@ class StatLabeler(DataApp):
         self.save_meta_results = config.get('save_meta_results', False)
         self.save_plots = config.get('save_plots', False)
         self.filter_data = config.get('filter_data', True)
-        self.topology_controller = TypologyController(threephi_db.new_session)
+        self.topology_controller = TopologyController(threephi_db.new_session)
         self.weather_file = "/opt/airflow/data/weather_data.csv"
-        self.results_dir = "/opt/airflow/data/stat_labeler/"
-        
+        self.results_dir = f'{self.data_extractor.s3_base}/stat_labeler_results'
         
         self.thresholds = {"weekly_change": 0.01,
                         "static_days": 0.4,
@@ -505,6 +505,153 @@ class StatLabeler(DataApp):
         sm_df = sm_df[sm_df.index.tz_localize(None).to_period('W').isin(weeks_to_keep.tz_localize(None).to_period('W'))]
         return sm_df
 
+    def _label_meters(self, sm_ids):
+
+        # Load heat pump status and weather data
+
+        sm_with_hp = self.topology_controller.get_meters(has_heat_pump=True)
+
+        weather_df = self.data_extractor.s3_connector.read_small_csv(self.weather_file)
+
+        # Set up meta results file
+        meta_results_chunk = {sm_id: {"Heat_pump_info": [], "Heat_pump_stats": [], 
+                                        "Summerhouse_info": "", "Summerhouse_stats": [],
+                                        "ANOVA_info": "", "ANOVA_results": [],
+                                        "MAE": [], "MAEr": [], "n_t_bins": ""} for sm_id in sm_ids}
+        
+        # Set up a dictionary to store the heat pump results. This will include all the new results
+        heat_pump_results = {}
+
+        # Set up a dictionary to store the heat pump returns. This will NOT include all the new results
+        heat_pump_returns = {}
+
+        for sm_id in tqdm(sm_ids, desc="HP Labeling on cleaned profiles of smart meters"):    
+
+            logging.info(f"Processing smart meter {sm_id}")
+
+            # If the sm_id does not have a heat pump, skip it
+            if self.process_only_sm_with_hp and not sm_id in sm_with_hp:
+                logging.info(f"Smart meter {sm_id} does not have a heat pump. Skipped.")
+                continue
+            
+            # Check if results already exist in earlier results files
+            if not self.overwrite_existing_results:
+                proceed_with_processing = True
+                heat_pump_returns, proceed_with_processing = self._check_previous_results(earlier_results_paths, sm_id, heat_pump_returns)
+                if proceed_with_processing is False:
+                    logging.info(f"Skipping processing for smart meter {sm_id} as results already exist.")
+                    continue
+
+            # Load the cleaned sm data
+            sm_df = self.data_extractor.v1_get_single_meter_data(sm_id)
+
+            # Keep only the active power columns
+            sm_df = sm_df[[col for col in sm_df.columns if 'active_power_p14' in col]]
+            
+            # But don't keep columns that have _status in it
+            sm_df = sm_df[[col for col in sm_df.columns if '_status' not in col]]
+
+            # Remove rows with "missing data imputed"
+            sm_df = sm_df[~sm_df.isin(['missing data imputed']).any(axis=1)]
+            sm_df = sm_df.fillna(0)
+
+            sm_df.columns = [f"l{phase+1}" for phase in range(sm_df.columns.size)]
+
+            sm_df.index = pd.to_datetime(sm_df.index).tz_convert('UTC')
+
+            if self.label_summerhouse:
+                meta_results_chunk = self._label_summerhouse(sm_df, sm_id, meta_results_chunk)
+            
+            if self.filter_data:
+                sm_df = self._filter_data(sm_df)
+
+            # Plotting the filtered data
+            if self.save_plots:
+                self._plot_sm(sm_id, sm_df, self.results_dir, filename="filtered")
+
+            # Resample to hourly data
+            sm_df = sm_df.resample('1h').mean(numeric_only=True)
+
+            # Join weather data
+            sm_df = sm_df.join(weather_df, how='left')
+
+            # Remove the periods where all the phases are zero
+            sm_df = sm_df[(sm_df[sm_df.columns[0]] != 0) | (sm_df[sm_df.columns[1]] != 0) | (sm_df[sm_df.columns[2]] != 0)]
+            
+            # Get the base load and the lowest consumpting temperature bin for each phase
+            loadb_list, tmin_list, n_bins = self._get_base_load_and_temperature_bins(sm_df)
+
+            sm_df["T_bin"] = pd.qcut(sm_df["T"], n_bins, labels=range(n_bins))
+
+            # Find the thermal priors for each phase
+            thermal_prior_list, maxstep_list, step_list = self._get_thermal_prior(sm_df, tmin_list, n_bins)
+
+            # Find the thermal posterior for each phase, and sample a thermal load
+            post_thermal_load = self._get_thermal_posterior(thermal_prior_list, maxstep_list, step_list, sm_df, tmin_list, n_bins)
+            
+            # Calculate the slope of the thermal load vs temperature, to determine if there is a heat pump
+            # Save the slope and intercept values in the meta results
+            heat_pump, hp_indicators, slopelist, interceptlist, maxslopelist = self._calculate_temperature_linearity(sm_df, post_thermal_load, maxstep_list)
+
+            if self.save_meta_results:
+                # Save number of temperature bins used
+                meta_results_chunk[sm_id]["n_t_bins"] = str(n_bins)
+
+                # Save heat pump info
+                meta_results_chunk[sm_id]["Heat_pump_info"].extend(f'{sm_df.columns[phase]}: {heat_pump[phase]}' for phase in range(3))
+                meta_results_chunk[sm_id]["Heat_pump_stats"].extend(f'slope {sm_df.columns[phase]}: {slopelist[phase]:.4f} (Threshold: {maxslopelist[phase]:.4f})' for phase in range(3))
+                meta_results_chunk[sm_id]["Heat_pump_stats"].extend(f'Intercept {sm_df.columns[phase]}: {interceptlist[phase]:.2f} Wh' for phase in range(3))
+            
+                # Calculate MAE and MAEr
+                mae_list, maer_list = self._calculate_mae(sm_df, post_thermal_load, loadb_list)
+                meta_results_chunk[sm_id]["MAE"].extend(f"{sm_df.columns[phase]}: {mae_list[phase]:.4f}" for phase in range(3))
+                meta_results_chunk[sm_id]["MAEr"].extend(f"{sm_df.columns[phase]}: {maer_list[phase]:.4%}" for phase in range(3))
+            
+            if self.use_ANOVA:
+                anova_results = self._get_anova_results(sm_df, post_thermal_load)
+
+                if self.save_meta_results:
+
+                    if anova_results is None or (isinstance(anova_results, pd.DataFrame) and anova_results.empty):
+                        meta_results_chunk[sm_id]["ANOVA_info"] = f"ANOVA could not be computed due to insufficient data variation"
+                    
+                    if anova_results is not None:
+                        # Save meta results on ANOVA
+                        if anova_results['PR(>F)']['C(Thermal_Load)'] > self.thresholds['anova_pvalue']:
+                            meta_results_chunk[sm_id]["ANOVA_info"] = f"We cannot discard the idea of a relation between the thermal loads"
+                            
+                            if hp_indicators < 2:
+                                meta_results_chunk[sm_id]["Heat_pump_info"] = ["Does likely not have a heat pump, based on slope and ANOVA"]
+                                meta_results_chunk[sm_id]["Heat_pump_info"].extend(f'{sm_df.columns[phase]}: False' for phase in range(3))
+                                heat_pump = [False, False, False]
+                            elif hp_indicators >= 2:
+                                meta_results_chunk[sm_id]["Heat_pump_info"] = ["Does likely have a heat pump, based on slope and ANOVA"]
+                                meta_results_chunk[sm_id]["Heat_pump_info"].extend(f'{sm_df.columns[phase]}: True' for phase in range(3))
+                                heat_pump = [True, True, True]
+                        else:
+                            meta_results_chunk[sm_id]["ANOVA_info"] = f"There is no relation between the thermal loads"
+
+                        meta_results_chunk[sm_id]["ANOVA_results"].append(f'P-value (Thermal_Load): {anova_results["PR(>F)"]["C(Thermal_Load)"]:.4%}')
+                        meta_results_chunk[sm_id]["ANOVA_results"].append(f'P-value ((T_filtered):C(Thermal_Load)): {anova_results["PR(>F)"]["C(T_filtered):C(Thermal_Load)"]:.4%}')
+
+                else:
+                    if anova_results is not None:
+                        if anova_results['PR(>F)']['C(Thermal_Load)'] > self.thresholds['anova_pvalue']:
+                            if hp_indicators < 2:
+                                heat_pump = [False, False, False]
+                            elif hp_indicators >= 2:
+                                heat_pump = [True, True, True]
+                
+            # Return dictonary with heat pump results
+            heat_pump_results[sm_id] = {"l1": bool(heat_pump[0]),
+                                            "l2": bool(heat_pump[1]),
+                                            "l3": bool(heat_pump[2])}
+            
+            # Add to the heat pump return
+            heat_pump_returns[sm_id] = heat_pump_results[sm_id]
+
+        return meta_results_chunk, heat_pump_results, heat_pump_returns
+
     # Method to perform statistical labeling of heat pumps in smart meter data
     def stat_label_sm(self,
                            sm_ids: list = None,
@@ -522,159 +669,17 @@ class StatLabeler(DataApp):
 
         self.sm_ids = [str(sm_id) for sm_id in self.sm_ids]
 
+        # Create folder for results if it does not exist
+        if not os.path.exists(self.results_dir):
+            os.makedirs(self.results_dir)
+
         # Find earlier results files in the results directory
         earlier_results_paths = [os.path.join(self.results_dir, f) for f in os.listdir(self.results_dir) if "results" in f]
 
-        def _label_meters(sm_ids):
-
-            # Load heat pump status and weather data
-
-            sm_with_hp = self.topology_controller.get_meters(has_heat_pump=True)
-
-            weather_df = self.data_extractor.s3_connector.read_small_csv(self.weather_file)
-
-            # Set up meta results file
-            meta_results_chunk = {sm_id: {"Heat_pump_info": [], "Heat_pump_stats": [], 
-                                          "Summerhouse_info": "", "Summerhouse_stats": [],
-                                          "ANOVA_info": "", "ANOVA_results": [],
-                                          "MAE": [], "MAEr": [], "n_t_bins": ""} for sm_id in sm_ids}
-            
-            # Set up a dictionary to store the heat pump results. This will include all the new results
-            heat_pump_results = {}
-
-            # Set up a dictionary to store the heat pump returns. This will NOT include all the new results
-            heat_pump_returns = {}
-
-            for sm_id in tqdm(sm_ids, desc="HP Labeling on cleaned profiles of smart meters"):    
-
-                logging.info(f"Processing smart meter {sm_id}")
-
-                # If the sm_id does not have a heat pump, skip it
-                if self.process_only_sm_with_hp and not sm_id in sm_with_hp:
-                    logging.info(f"Smart meter {sm_id} does not have a heat pump. Skipped.")
-                    continue
-                
-                # Check if results already exist in earlier results files
-                if not self.overwrite_existing_results:
-                    proceed_with_processing = True
-                    heat_pump_returns, proceed_with_processing = self._check_previous_results(earlier_results_paths, sm_id, heat_pump_returns)
-                    if proceed_with_processing is False:
-                        logging.info(f"Skipping processing for smart meter {sm_id} as results already exist.")
-                        continue
-
-                # Load the cleaned sm data
-                sm_df = self.data_extractor.v1_get_single_meter_data(sm_id)
-
-                # Keep only the active power columns
-                sm_df = sm_df[[col for col in sm_df.columns if 'active_power_p14' in col]]
-                
-                # But don't keep columns that have _status in it
-                sm_df = sm_df[[col for col in sm_df.columns if '_status' not in col]]
-
-                # Remove rows with "missing data imputed"
-                sm_df = sm_df[~sm_df.isin(['missing data imputed']).any(axis=1)]
-                sm_df = sm_df.fillna(0)
-
-                sm_df.columns = [f"l{phase+1}" for phase in range(sm_df.columns.size)]
-
-                sm_df.index = pd.to_datetime(sm_df.index).tz_convert('UTC')
-
-                if self.label_summerhouse:
-                    meta_results_chunk = self._label_summerhouse(sm_df, sm_id, meta_results_chunk)
-                
-                if self.filter_data:
-                    sm_df = self._filter_data(sm_df)
-
-                # Plotting the filtered data
-                if self.save_plots:
-                    self._plot_sm(sm_id, sm_df, self.results_dir, filename="filtered")
-
-                # Resample to hourly data
-                sm_df = sm_df.resample('1h').mean(numeric_only=True)
-
-                # Join weather data
-                sm_df = sm_df.join(self.weather_df, how='left')
-
-                # Remove the periods where all the phases are zero
-                sm_df = sm_df[(sm_df[sm_df.columns[0]] != 0) | (sm_df[sm_df.columns[1]] != 0) | (sm_df[sm_df.columns[2]] != 0)]
-                
-                # Get the base load and the lowest consumpting temperature bin for each phase
-                loadb_list, tmin_list, n_bins = self._get_base_load_and_temperature_bins(sm_df)
-
-                sm_df["T_bin"] = pd.qcut(sm_df["T"], n_bins, labels=range(n_bins))
-
-                # Find the thermal priors for each phase
-                thermal_prior_list, maxstep_list, step_list = self._get_thermal_prior(sm_df, tmin_list, n_bins)
-
-                # Find the thermal posterior for each phase, and sample a thermal load
-                post_thermal_load = self._get_thermal_posterior(thermal_prior_list, maxstep_list, step_list, sm_df, tmin_list, n_bins)
-                
-                # Calculate the slope of the thermal load vs temperature, to determine if there is a heat pump
-                # Save the slope and intercept values in the meta results
-                heat_pump, hp_indicators, slopelist, interceptlist, maxslopelist = self._calculate_temperature_linearity(sm_df, post_thermal_load, maxstep_list)
-
-                if save_meta_results:
-                    # Save number of temperature bins used
-                    meta_results_chunk[sm_id]["n_t_bins"] = str(n_bins)
-
-                    # Save heat pump info
-                    meta_results_chunk[sm_id]["Heat_pump_info"].extend(f'{sm_df.columns[phase]}: {heat_pump[phase]}' for phase in range(3))
-                    meta_results_chunk[sm_id]["Heat_pump_stats"].extend(f'slope {sm_df.columns[phase]}: {slopelist[phase]:.4f} (Threshold: {maxslopelist[phase]:.4f})' for phase in range(3))
-                    meta_results_chunk[sm_id]["Heat_pump_stats"].extend(f'Intercept {sm_df.columns[phase]}: {interceptlist[phase]:.2f} Wh' for phase in range(3))
-                
-                    # Calculate MAE and MAEr
-                    mae_list, maer_list = self._calculate_mae(sm_df, post_thermal_load, loadb_list)
-                    meta_results_chunk[sm_id]["MAE"].extend(f"{sm_df.columns[phase]}: {mae_list[phase]:.4f}" for phase in range(3))
-                    meta_results_chunk[sm_id]["MAEr"].extend(f"{sm_df.columns[phase]}: {maer_list[phase]:.4%}" for phase in range(3))
-                
-                if self.use_ANOVA:
-                    anova_results = self._get_anova_results(sm_df, post_thermal_load)
-
-                    if save_meta_results:
-
-                        if anova_results is None or (isinstance(anova_results, pd.DataFrame) and anova_results.empty):
-                            meta_results_chunk[sm_id]["ANOVA_info"] = f"ANOVA could not be computed due to insufficient data variation"
-                        
-                        if anova_results is not None:
-                            # Save meta results on ANOVA
-                            if anova_results['PR(>F)']['C(Thermal_Load)'] > self.thresholds['anova_pvalue']:
-                                meta_results_chunk[sm_id]["ANOVA_info"] = f"We cannot discard the idea of a relation between the thermal loads"
-                                
-                                if hp_indicators < 2:
-                                    meta_results_chunk[sm_id]["Heat_pump_info"] = ["Does likely not have a heat pump, based on slope and ANOVA"]
-                                    meta_results_chunk[sm_id]["Heat_pump_info"].extend(f'{sm_df.columns[phase]}: False' for phase in range(3))
-                                    heat_pump = [False, False, False]
-                                elif hp_indicators >= 2:
-                                    meta_results_chunk[sm_id]["Heat_pump_info"] = ["Does likely have a heat pump, based on slope and ANOVA"]
-                                    meta_results_chunk[sm_id]["Heat_pump_info"].extend(f'{sm_df.columns[phase]}: True' for phase in range(3))
-                                    heat_pump = [True, True, True]
-                            else:
-                                meta_results_chunk[sm_id]["ANOVA_info"] = f"There is no relation between the thermal loads"
-
-                            meta_results_chunk[sm_id]["ANOVA_results"].append(f'P-value (Thermal_Load): {anova_results["PR(>F)"]["C(Thermal_Load)"]:.4%}')
-                            meta_results_chunk[sm_id]["ANOVA_results"].append(f'P-value ((T_filtered):C(Thermal_Load)): {anova_results["PR(>F)"]["C(T_filtered):C(Thermal_Load)"]:.4%}')
-
-                    else:
-                        if anova_results is not None:
-                            if anova_results['PR(>F)']['C(Thermal_Load)'] > self.thresholds['anova_pvalue']:
-                                if hp_indicators < 2:
-                                    heat_pump = [False, False, False]
-                                elif hp_indicators >= 2:
-                                    heat_pump = [True, True, True]
-                    
-                # Return dictonary with heat pump results
-                heat_pump_results[sm_id] = {"l1": bool(heat_pump[0]),
-                                             "l2": bool(heat_pump[1]),
-                                             "l3": bool(heat_pump[2])}
-                
-                # Add to the heat pump return
-                heat_pump_returns[sm_id] = heat_pump_results[sm_id]
-
-            return meta_results_chunk, heat_pump_results, heat_pump_returns
 
         if self.use_dask:
             sm_id_chunks = np.array_split(self.sm_ids, min(len(self.sm_ids), self.n_workers))
-            delayed_tasks = [delayed(_label_meters)(sm_ids=sm_ids_chunk) for sm_ids_chunk in sm_id_chunks]
+            delayed_tasks = [delayed(self._label_meters)(sm_ids_chunk) for sm_ids_chunk in sm_id_chunks]
             # meta_results_list = compute(*delayed_tasks)
 
             results = compute(*delayed_tasks)
@@ -687,7 +692,7 @@ class StatLabeler(DataApp):
             heat_pump_returns = {k: v for d in heat_pump_returns for k, v in d.items()}
             sleep(1)
         else:
-            meta_results_merged, heat_pump_merged, heat_pump_returns = _label_meters(sm_ids=self.sm_ids)
+            meta_results_merged, heat_pump_merged, heat_pump_returns = self._label_meters(sm_ids=self.sm_ids)
         
         # Save results if desired
         # Add timestamp to the filename
@@ -729,7 +734,7 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', co
         max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
     ) as dag:
         stat_labeler_task = PythonOperator(
-            task_id="Label phases of SMs",
+            task_id="Label_phases_of_SMs",
             python_callable=statlabeler.run,
             doc_md="""
             ## Label phases of SMs

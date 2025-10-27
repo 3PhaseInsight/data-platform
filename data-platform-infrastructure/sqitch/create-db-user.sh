@@ -1,4 +1,4 @@
-!/usr/bin/env bash
+# !/usr/bin/env bash
 
 # Simple local script to create a Postgres role without depending on a specific container runtime.
 # Usage:
