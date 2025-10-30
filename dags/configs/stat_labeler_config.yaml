@@ -1,15 +1,8 @@
 Name: example # Name of the config file
 Comment: This is a config file for exemplifying the run of the stat labeler # A comment to describe the run
 
-Data_batch: second_batch # Which data batch to work with. can be first_batch or second_batch
-Use_dask: True # Whether to use Dask for parallel and out-of-memory computing. Can be True or False
-Cluster: LocalCluster # LocalCluster, SSHCluster or KubeCluster at the moment (use LocalCluster on local machines)
-
 Cluster_settings:
-  processes: True # Whether to use multiprocessing or multithreading
   n_workers: 4 # Should not exceed the number of cores on your machine
-  memory_limit: "4GB" # Memory limit is PER WORKER
-  # dashboard_address: ':8786'  # Open dask dashboard via http://localhost:8786/
 
 TopologyCleaner:
   save_results: True
