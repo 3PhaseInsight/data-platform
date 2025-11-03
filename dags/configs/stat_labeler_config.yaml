@@ -20,3 +20,5 @@ save_plots: False # Boolean to decide if plots should be saved during the run
 save_results: False # Boolean to define if results for current cleaning run should be saved
 save_meta_results: True # Boolean to define if meta results for current cleaning run should be saved
 
+data_dir_path: phase_measurements/raw # Path to the directory containing phase measurement data
+

@@ -6,6 +6,7 @@ import numpy as np
 from dask.distributed import get_client, Client
 from dask import delayed, compute
 from datetime import datetime
+import pandas as pd
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
@@ -28,6 +29,7 @@ class StatLabeler(DataApp):
 
         # Set up the local config settings
         self.data_extractor = DataExtractor()
+        self.data_dir_path = config.get('data_dir_path', None)
         self.use_ANOVA = config.get('use_ANOVA', True)
         self.label_summerhouse = config.get('label_summerhouse', True)
         self.process_only_sm_with_hp = config.get('process_only_sm_with_hp', False)
@@ -38,7 +40,7 @@ class StatLabeler(DataApp):
         self.save_plots = config.get('save_plots', False)
         self.filter_data = config.get('filter_data', True)
         self.topology_controller = TopologyController(threephi_db.new_session)
-        self.weather_file = "/opt/airflow/data/weather_data.csv"
+        self.weather_file = f'{self.data_extractor.s3_base}/weather_data.csv' #/opt/airflow/data/weather_data.csv'
         self.results_dir = f'{self.data_extractor.s3_base}/stat_labeler_results'
         
         self.thresholds = {"weekly_change": 0.01,
@@ -57,6 +59,7 @@ class StatLabeler(DataApp):
 
     def _export_cfg(self) -> dict:
         return {
+            "data_dir_path": self.data_dir_path,
             "process_only_sm_with_hp": self.process_only_sm_with_hp,
             "overwrite_existing_results": self.overwrite_existing_results,
             "label_summerhouse": self.label_summerhouse,
@@ -99,6 +102,7 @@ class StatLabeler(DataApp):
         self._update_config(args=locals().items())
 
         self.sm_ids = [str(sm_id) for sm_id in self.sm_ids]
+        logging.info(f"SMs: {self.sm_ids}")
 
         # Create folder for results if it does not exist
         if not os.path.exists(self.results_dir):
