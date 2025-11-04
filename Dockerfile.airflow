@@ -18,6 +18,7 @@ COPY requirements-extra.txt /requirements-extra.txt
 
 # Copy DAGs & source code
 COPY dags/ /opt/airflow/dags/
+COPY plugins/ /opt/airflow/plugins/
 
 # Copy airflow config file
 COPY airflow.cfg /opt/airflow/airflow.cfg
