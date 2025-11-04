@@ -22,6 +22,12 @@ RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
     pip install --no-cache-dir -r /tmp/requirements.txt --constraint "${CONSTRAINT_URL}" && \
     pip install --no-cache-dir -r /requirements-extra.txt
 
+# add Python deps
+COPY plugins/ /home/dask/plugins/
+
+# Update Python Path
+ENV PYTHONPATH="${PYTHONPATH}:/home/dask/plugins"
+
 # Drop privileges for runtime
 ARG DASK_UID=1000 DASK_GID=1000
 RUN getent group dask >/dev/null || groupadd -g $DASK_GID dask \
