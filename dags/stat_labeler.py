@@ -16,7 +16,7 @@ from threephi_framework import DataApp
 from threephi_framework import DataExtractor
 import threephi_framework.db.db as threephi_db
 from threephi_framework import TopologyController
-from threephi_framework.dtu.stat_labeler import _label_meters
+from dtu.stat_labeler import label_meters
 
 class StatLabeler(DataApp):
 
@@ -116,7 +116,7 @@ class StatLabeler(DataApp):
 
         sm_id_chunks = np.array_split(self.sm_ids, min(len(self.sm_ids), self.n_workers))
         cfg = self._export_cfg()
-        delayed_tasks = [delayed(_label_meters)(sm_ids_chunk, sm_with_hp, cfg) for sm_ids_chunk in sm_id_chunks]
+        delayed_tasks = [delayed(label_meters)(sm_ids_chunk, sm_with_hp, cfg) for sm_ids_chunk in sm_id_chunks]
         # meta_results_list = compute(*delayed_tasks)
 
         results = compute(*delayed_tasks)
