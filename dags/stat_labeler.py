@@ -69,6 +69,7 @@ class StatLabeler(DataApp):
             "thresholds": dict(self.thresholds),
             "results_dir": str(self.results_dir),
             "weather_file": self.weather_file,
+            "save_meta_results": self.save_meta_results,
         }
 
     # Method to check for previous results in earlier results files

@@ -8,7 +8,7 @@ TopologyCleaner:
   save_results: True
   overwrite_existing_topology_files:
 
-sm_ids: ["17", "999955", "999950", "999964", "604"] # List of Smart Meter IDs to apply the StatLabeler on.
+sm_ids: ["17", "999955", "999950", "999964"] # List of Smart Meter IDs to apply the StatLabeler on.
 
 overwrite_existing_results: False # Boolean to decide if existing labeled profiles should be overwritten by this run
 filter_data: True # If True, data is filtered before processing

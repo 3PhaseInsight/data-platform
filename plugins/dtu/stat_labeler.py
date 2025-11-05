@@ -44,21 +44,21 @@ def _label_summerhouse(sm_df, sm_id, meta_results, cfg):
     # or if the ratio of weekend consumption to normal days are above 45%,
     # then this might be a summerhouse
     if (
-            len(days_with_static_con) > cfg["thresholds"]["static_days"] * len(sm_df_filtered)
-            or weekend_ratio > cfg["thresholds"]["weekend_ratio"]
-            if normal_day_consumption > 0
-            else False
+        len(days_with_static_con) > cfg["thresholds"]["static_days"] * len(sm_df_filtered)
+        or weekend_ratio > cfg["thresholds"]["weekend_ratio"]
+        if normal_day_consumption > 0
+        else False
     ):
         # If so, then let us also find the consumption during holidays to further verify
         # Holidays: 16 october to 20 october, 18 december to 3 january, 12 february to 16 february, 25 march to 29 march
         holiday_mask = (
-                ((sm_df.index.month == 10) & (sm_df.index.day >= 16) & (sm_df.index.day <= 20))
-                | ((sm_df.index.month == 12) & (sm_df.index.day >= 18) & (sm_df.index.day <= 23))
-                | ((sm_df.index.month == 12) & (sm_df.index.day >= 25) & (sm_df.index.day <= 29))
-                | ((sm_df.index.month == 1) & (sm_df.index.day <= 3))
-                | ((sm_df.index.month == 2) & (sm_df.index.day >= 12) & (sm_df.index.day <= 16))
-                | ((sm_df.index.month == 3) & (sm_df.index.day >= 25) & (sm_df.index.day <= 29))
-                | ((sm_df.index.month == 4) & (sm_df.index.day == 26))
+            ((sm_df.index.month == 10) & (sm_df.index.day >= 16) & (sm_df.index.day <= 20))
+            | ((sm_df.index.month == 12) & (sm_df.index.day >= 18) & (sm_df.index.day <= 23))
+            | ((sm_df.index.month == 12) & (sm_df.index.day >= 25) & (sm_df.index.day <= 29))
+            | ((sm_df.index.month == 1) & (sm_df.index.day <= 3))
+            | ((sm_df.index.month == 2) & (sm_df.index.day >= 12) & (sm_df.index.day <= 16))
+            | ((sm_df.index.month == 3) & (sm_df.index.day >= 25) & (sm_df.index.day <= 29))
+            | ((sm_df.index.month == 4) & (sm_df.index.day == 26))
         )
         holiday_consumption = sm_df[holiday_mask].sum().sum()
 
@@ -373,11 +373,11 @@ def _get_thermal_posterior(thermal_prior_list, maxstep_list, step_list, sm_df, t
                 [
                     np.random.choice(100 * np.arange(0, step), p=thermal_posterior[:, load, hour, t_bin])
                     for load, hour, t_bin in zip(
-                    (sm_df[sm_df.columns[phase]] / 100).astype(int).clip(0, step - 1),
-                    sm_df.index.hour,
-                    sm_df["T_bin"],
-                    strict=False,
-                )
+                        (sm_df[sm_df.columns[phase]] / 100).astype(int).clip(0, step - 1),
+                        sm_df.index.hour,
+                        sm_df["T_bin"],
+                        strict=False,
+                    )
                 ],
                 index=sm_df.index,
             )
@@ -671,7 +671,7 @@ def label_meters(sm_ids, sm_with_hp, cfg):
 
             else:
                 if (anova_results is not None and
-                        anova_results["PR(>F)"]["C(Thermal_Load)"] > cfg["thresholds"]["anova_pvalue"]):
+                    anova_results["PR(>F)"]["C(Thermal_Load)"] > cfg["thresholds"]["anova_pvalue"]):
                     if hp_indicators < 2:
                         heat_pump = [False, False, False]
                     elif hp_indicators >= 2:
