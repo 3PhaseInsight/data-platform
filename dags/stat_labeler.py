@@ -117,7 +117,6 @@ class StatLabeler(DataApp):
         sm_to_process = []
 
         # Check for previous results to avoid re-processing
-        self.overwrite_existing_results = True
         if not self.overwrite_existing_results:
             earlier_results = self.data_extractor.s3_connector.glob(f"{self.results_dir}/heat_pump_results_*.json")
             for sm_id in self.sm_ids:
