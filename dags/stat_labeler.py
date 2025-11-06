@@ -40,8 +40,10 @@ class StatLabeler(DataApp):
         self.save_plots = config.get('save_plots', False)
         self.filter_data = config.get('filter_data', True)
         self.topology_controller = TopologyController(threephi_db.new_session)
-        self.weather_file = f'{self.data_extractor.s3_base}/weather_data.csv' #/opt/airflow/data/weather_data.csv'
-        self.results_dir = f'{self.data_extractor.s3_base}/stat_labeler_results'
+        self.results_dir = f'{self.data_extractor.s3_base}/stat_labeler'
+        self.weather_file_local = '/opt/airflow/data/weather_data.csv' 
+        self.weather_file = f'{self.results_dir}/data/weather_data.csv'
+        
         
         self.thresholds = {"weekly_change": 0.01,
                         "static_days": 0.4,
@@ -73,18 +75,18 @@ class StatLabeler(DataApp):
         }
 
     # Method to check for previous results in earlier results files
-    def _check_previous_results(self, earlier_results_paths, sm_id, heat_pump_returns):
+    def _check_previous_results(self, results_path, sm_id, heat_pump_returns):
         sm_str = str(sm_id)
-        for results_path in earlier_results_paths:
+        for prev_results in results_path:
             try:
-                results_data = self.data_extractor.s3_connector.read_json(results_path)
+                results_data = self.data_extractor.s3_connector.read_json(prev_results)
                 if sm_str in results_data:
                     heat_pump_returns[sm_id] = results_data[sm_str]
                     logging.info(f"Label results of {sm_id} already exists in earlier results. Loading existing results.")
                     return heat_pump_returns, False
             except Exception as e:
-                logging.warning(f"Could not read {results_path}: {e}")
-                continue     
+                logging.warning(f"Could not read {prev_results}: {e}")
+                continue
         return heat_pump_returns, True
 
     # Method to perform statistical labeling of heat pumps in smart meter data
@@ -105,41 +107,60 @@ class StatLabeler(DataApp):
         self.sm_ids = [str(sm_id) for sm_id in self.sm_ids]
         logging.info(f"SMs: {self.sm_ids}")
 
-        # Create folder for results if it does not exist
-        if not os.path.exists(self.results_dir):
-            os.makedirs(self.results_dir)
+        # Put weather_file to stat_labeler bucket
+        if not self.data_extractor.s3_connector.exists(self.weather_file):
+            self.data_extractor.s3_connector.put_file(self.weather_file_local, self.weather_file)
+            logging.info(f"Weather file uploaded to {self.weather_file}")
 
-        # Find earlier results files in the results directory
-        earlier_results_paths = [os.path.join(self.results_dir, f) for f in os.listdir(self.results_dir) if "results" in f]
+        # initialize return dict
+        heat_pump_returns = {}
+        sm_to_process = []
 
-
-        sm_with_hp = self.topology_controller.get_meters(has_heat_pump=True)
-
-        sm_id_chunks = np.array_split(self.sm_ids, min(len(self.sm_ids), self.n_workers))
-        cfg = self._export_cfg()
-        delayed_tasks = [delayed(label_meters)(sm_ids_chunk, sm_with_hp, cfg) for sm_ids_chunk in sm_id_chunks]
-        # meta_results_list = compute(*delayed_tasks)
-
-        results = compute(*delayed_tasks)
-        meta_results_list = [r[0] for r in results]
-        heat_pump_list = [r[1] for r in results]
-        heat_pump_returns = [r[2] for r in results]
-
-        meta_results_merged = {k: v for d in meta_results_list for k, v in d.items()}
-        heat_pump_merged = {k: v for d in heat_pump_list for k, v in d.items()}
-        heat_pump_returns = {k: v for d in heat_pump_returns for k, v in d.items()}
-        sleep(1)
-        
-        # Save results if desired
-        # Add timestamp to the filename
-        now = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
-        if self.save_meta_results:
-            self.data_extractor.s3_connector.write_json(path = self.results_dir + f'meta_results_{now}.json', data = meta_results_merged)
-            self.data_extractor.s3_connector.write_json(path = self.results_dir + f'heat_pump_results_{now}.json', data = heat_pump_merged)
+        # Check for previous results to avoid re-processing
+        self.overwrite_existing_results = True
+        if not self.overwrite_existing_results:
+            earlier_results = self.data_extractor.s3_connector.glob(f"{self.results_dir}/heat_pump_results_*.json")
+            for sm_id in self.sm_ids:
+                heat_pump_returns, proceed = self._check_previous_results(earlier_results, sm_id, heat_pump_returns)
+                if proceed:
+                    sm_to_process.append(sm_id)
+                else:
+                    logging.info(f"Skipping processing for SM {sm_id} as results already exist.")
         else:
-            self.data_extractor.s3_connector.write_json(path = self.results_dir + f'heat_pump_results_{now}.json', data = heat_pump_merged)
+            sm_to_process = self.sm_ids
 
-        return heat_pump_returns
+
+        if sm_to_process:
+            sm_with_hp = self.topology_controller.get_meters(has_heat_pump=True)
+
+            sm_id_chunks = np.array_split(sm_to_process, min(len(sm_to_process), self.n_workers))
+            cfg = self._export_cfg()
+            delayed_tasks = [delayed(label_meters)(sm_ids_chunk, sm_with_hp, cfg) for sm_ids_chunk in sm_id_chunks]
+            # meta_results_list = compute(*delayed_tasks)
+
+            results = compute(*delayed_tasks)
+            meta_results_list = [r[0] for r in results]
+            heat_pump_list = [r[1] for r in results]
+            heat_pump_returns_list = [r[2] for r in results]
+
+            meta_results_merged = {k: v for d in meta_results_list for k, v in d.items()}
+            heat_pump_merged = {k: v for d in heat_pump_list for k, v in d.items()}
+            heat_pump_returns_merged = {k: v for d in heat_pump_returns_list for k, v in d.items()}
+           
+            # Update the heat_pump_returns with newly processed results
+            heat_pump_returns.update(heat_pump_returns_merged)
+
+            
+            # Save results if desired
+            # Add timestamp to the filename
+            now = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+            if self.save_meta_results:
+                self.data_extractor.s3_connector.write_json(path = f"{self.results_dir}/meta_results_{now}.json", data = meta_results_merged)
+            self.data_extractor.s3_connector.write_json(path = f"{self.results_dir}/heat_pump_results_{now}.json", data = heat_pump_merged)
+
+            labels_returns = {sm_id: heat_pump_returns.get(sm_id) for sm_id in self.sm_ids}
+
+            return labels_returns
     
     def run(self):
         self.stat_label_sm()

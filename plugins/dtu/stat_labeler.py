@@ -22,6 +22,7 @@ def _filter_data(sm_df, cfg):
     return sm_df
 
 
+
 # Method to label a smart meter as summerhouse or not
 def _label_summerhouse(sm_df, sm_id, meta_results, cfg):
     sm_df_filtered = _filter_data(sm_df, cfg)
@@ -527,23 +528,12 @@ def label_meters(sm_ids, sm_with_hp, cfg):
             logging.info(f"Smart meter {sm_id} does not have a heat pump. Skipped.")
             continue
 
-        # TODO: This check needs to happen outside of the _label_meters method
-        # Check if results already exist in earlier results files
-        # if not cfg["overwrite_existing_results"]:
-        #     proceed_with_processing = True
-        #     heat_pump_returns, proceed_with_processing = self._check_previous_results(earlier_results_paths, \
-        #           sm_id, heat_pump_returns)
-        #     if proceed_with_processing is False:
-        #         logging.info(f"Skipping processing for smart meter {sm_id} as results already exist.")
-        #         continue
-
         # Load the cleaned sm data
         sm_df = data_extractor.v1_get_single_meter_data(sm_id)
 
         # Compute the dask dataframe to pandas dataframe
         sm_df = sm_df.compute()
 
-        # TODO: Remove lines that does row operations on columns that doesnt exist anymore
         # Turn timestamp column into index
         sm_df.set_index("timestamp", inplace=True)
         sm_df.index = pd.to_datetime(sm_df.index).tz_convert("UTC")
@@ -551,21 +541,20 @@ def label_meters(sm_ids, sm_with_hp, cfg):
         # Keep only the active power columns
         sm_df = sm_df[[col for col in sm_df.columns if "active_power_p14" in col]]
 
-        # But don't keep columns that have _status in it
+        # Don't keep columns that have _status in it
         sm_df = sm_df[[col for col in sm_df.columns if "_status" not in col]]
 
-        # Remove rows with "missing data imputed"
-        sm_df = sm_df[~sm_df.isin(["missing data imputed"]).any(axis=1)]
+        # Fill NaN values with 0
         sm_df = sm_df.fillna(0)
 
-        logging.info(f"Head of SM: {sm_df.head()}")
-
+        # Rename the columns to l1, l2, l3
         sm_df.columns = [f"l{phase + 1}" for phase in range(sm_df.columns.size)]
 
-
+        # Label summerhouses
         if cfg["label_summerhouse"]:
             meta_results_chunk = _label_summerhouse(sm_df, sm_id, meta_results_chunk, cfg)
 
+        # Filter the data based on weekly changes
         if cfg["filter_data"]:
             sm_df = _filter_data(sm_df, cfg)
 
