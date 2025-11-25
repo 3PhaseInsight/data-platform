@@ -185,7 +185,7 @@ maximum number of rows available for any meter.
 },
 ```
 
-A dedicated "data_quality" column will be added to the `meter` table in order to be able to query this information quickly.
+A dedicated "data_quality" JSONB column will be added to the `meter` table in order to be able to query this information quickly.
 
 ## Data Statistics
 
@@ -207,7 +207,7 @@ A dedicated "data_quality" column will be added to the `meter` table in order to
 },
 ```
 
-A dedicated "data_statistics" column will be added to the `meter` table in order to enable quick querying.
+A dedicated "data_statistics" JSONB column will be added to the `meter` table in order to enable quick querying.
 
 ## Connectivity
 
@@ -219,4 +219,4 @@ A dedicated "data_statistics" column will be added to the `meter` table in order
 }
 ```
 
-A dedicated "connectivity" column will be added to the `meter` table in order to enable quick querying.
+A dedicated "connectivity" JSONB column will be added to the `meter` table in order to enable quick querying.
