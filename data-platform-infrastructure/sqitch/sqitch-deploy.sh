@@ -20,4 +20,4 @@ fi
 DB_URI="db:pg://$USER:$PASS@$HOST/$DBNAME"
 
 echo "Running sqitch deploy to $DB_URI ..."
-sqitch deploy "$DB_URI"
+sqitch deploy --verify "$DB_URI"

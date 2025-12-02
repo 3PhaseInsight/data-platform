@@ -145,10 +145,23 @@ CREATE INDEX IF NOT EXISTS lv_edge_cable_cable_idx ON lv.edge_cable (version, ca
 -- Convenience views
 -- =========================
 CREATE OR REPLACE VIEW lv.node_current AS
-SELECT n.* FROM lv.node n JOIN lv.topology_version v ON v.version=n.version WHERE v.is_current;
+SELECT n.*
+FROM lv.node n
+WHERE n.version = (
+    SELECT version
+    FROM lv.topology_version
+    WHERE is_current
+);
 
 CREATE OR REPLACE VIEW lv.edge_current AS
-SELECT e.* FROM lv.edge e JOIN lv.topology_version v ON v.version=e.version WHERE v.is_current;
+SELECT e.*
+FROM lv.edge e
+WHERE e.version = (
+    SELECT version
+    FROM lv.topology_version
+    WHERE is_current
+);
+
 
 CREATE OR REPLACE VIEW lv.edge_current_with_totals AS
 SELECT e.version, e.id, e.node1_id, e.node2_id,

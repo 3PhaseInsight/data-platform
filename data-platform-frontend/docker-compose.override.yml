@@ -4,6 +4,8 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
+      sqitch-runner:
+        condition: service_completed_successfully
     networks: [platform_network]
     environment:
       # Database
