@@ -22,3 +22,8 @@ msgpack==1.1.1
 xxhash==3.5.0
 graphviz
 Flask-AppBuilder
+
+# For StatLabeler
+matplotlib
+scipy
+statsmodels

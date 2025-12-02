@@ -1,0 +1,24 @@
+Name: example # Name of the config file
+Comment: This is a config file for exemplifying the run of the stat labeler # A comment to describe the run
+
+Cluster_settings:
+  n_workers: 4 # Should not exceed the number of cores on your machine
+
+TopologyCleaner:
+  save_results: True
+  overwrite_existing_topology_files:
+
+sm_ids: ["17", "999955", "999950", "999964"] # List of Smart Meter IDs to apply the StatLabeler on.
+
+overwrite_existing_results: False # Boolean to decide if existing labeled profiles should be overwritten by this run
+filter_data: True # If True, data is filtered before processing
+process_only_sm_with_hp: False # If True, only smart meters with heat pumps are processed
+label_summerhouse: True # If True, summerhouses are labeled in the meta data
+use_ANOVA: True # If True, ANOVA test is used to determine if the means of the groups are significantly different, and thus if the stat label should be applied.
+
+save_plots: False # Boolean to decide if plots should be saved during the run
+save_results: False # Boolean to define if results for current cleaning run should be saved
+save_meta_results: True # Boolean to define if meta results for current cleaning run should be saved
+
+data_dir_path: phase_measurements/raw # Path to the directory containing phase measurement data
+
