@@ -10,6 +10,10 @@ CREATE SCHEMA IF NOT EXISTS public;
 ALTER SCHEMA public OWNER TO postgres;
 COMMENT ON SCHEMA public IS 'standard public schema';
 
+-- Airflow Schema
+CREATE SCHEMA IF NOT EXISTS public;
+ALTER SCHEMA public OWNER TO postgres;
+
 -- Helper trigger function
 CREATE OR REPLACE FUNCTION public.set_updated_at() RETURNS trigger
     LANGUAGE plpgsql AS $$
