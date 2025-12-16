@@ -72,8 +72,8 @@ List of Meter ID Length: {len(result['id_list_of_sms_with_data'])}
         "Cabinet ID": "296903"
         },
         "Dataset Availability": {
-        "Available": true,
-        "Contains Data": true,
+        "Available": True,
+        "Contains Data": True,
         "Relative Length": 0.6648469487229479,
         "Absolute Length": 17050
         },
