@@ -2,6 +2,10 @@
 
 BEGIN;
 
--- XXX Add DDLs here.
+-- Table
+DROP TABLE IF EXISTS public.sm_phase_mapping;
+
+-- enum
+DROP TYPE IF EXISTS public.phase_enum;
 
 COMMIT;
