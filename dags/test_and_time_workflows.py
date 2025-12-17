@@ -5,11 +5,13 @@ import time
 
 import yaml
 from dask.distributed import Client, get_client
-from threephi_framework import DataExtractor
+from threephi_framework import DataExtractor, TopologyController
 from threephi_framework.db.db import new_session
 from threephi_framework.controllers.meta import MetaController
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
+
+from pandas import DataFrame
 
 PHASE_MEASUREMENTS_READY_PATH = "phase_measurements/raw"
 
@@ -31,6 +33,7 @@ def test_and_time_workflows():
 
     data_extractor = DataExtractor(phase_measurements_dir=pipeline_config["data_dir_path"])
     meta_controller = MetaController(new_session)
+    topology_controller = TopologyController(new_session)
 
     """ Testing workflow to get timeseries data """
     workflow = "get_timeseries_data"
@@ -38,11 +41,11 @@ def test_and_time_workflows():
     start_time = time.time()
     result = data_extractor.v1_get_timeseries_info()
     logger.info(f"""
-Timeseries Data:
-Earliest: {result['min_timestamp']},
-Latest: {result['max_timestamp']},
-List of Meter ID Length: {len(result['id_list_of_sms_with_data'])}
-""")
+    Timeseries Data:
+    Earliest: {result['min_timestamp']},
+    Latest: {result['max_timestamp']},
+    List of Meter ID Length: {len(result['id_list_of_sms_with_data'])}
+    """)
     logger.info(f"--- {workflow}: {time.time() - start_time} seconds ---")
 
     """ Get single meter data """
@@ -63,7 +66,7 @@ List of Meter ID Length: {len(result['id_list_of_sms_with_data'])}
     workflow = "get_sm_characterization_data"
     logger.info(f"Start {workflow}")
     start_time = time.time()
-    meter_id = 100690
+    meter_id = 100066
     data = {
         "Topology": {
         "Secondary Substation ID": "302894",
@@ -177,9 +180,39 @@ List of Meter ID Length: {len(result['id_list_of_sms_with_data'])}
         }
     }
     meta_controller.update_sm_characterization(meter_id, data)
-    meta_controller.get_sm_characterization(meter_id)
+    sm_char = meta_controller.get_sm_characterization(meter_id)
+    logger.info(sm_char)
 
     logger.info(f"--- {workflow}: {time.time() - start_time} seconds ---")
+
+
+    """ Testing workflow to export topology """
+    workflow = "export_topology"
+    logger.info(f"Start {workflow}")
+    start_time = time.time()
+    topology: DataFrame = topology_controller.export_topology() # type: ignore
+    sm_cab: DataFrame= topology_controller.export_sm_cabinet() # type: ignore
+
+    topology.to_csv(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "lv_topology_export.csv"),
+        index=False,
+    )
+    topology['transformer_capacity'] = topology['transformer_capacity'].astype('Int64')
+    topology['lv_feeder_fuse_size'] = topology['lv_feeder_fuse_size'].astype('Int64')
+    topology['phase_size'] = topology['phase_size'].astype('Int64')
+    topology['cable_capacity'] = topology['cable_capacity'].astype('Int64')
+
+
+    sm_cab.loc[sm_cab['cabinet'].notna(), 'lv_feeder'] = None
+    sm_cab.loc[sm_cab['lv_feeder'].notna(), 'cabinet'] = None
+    sm_cab['service_fuse_size'] = sm_cab['service_fuse_size'].astype('Int64')
+    sm_cab.to_csv(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "meter_cabinet_connection_export.csv"),
+        index=False,
+    )
+
+    logger.info(f"--- {workflow}: {time.time() - start_time} seconds ---")
+
 # Default DAG args
 default_args = {
     'owner': 'inilab',
