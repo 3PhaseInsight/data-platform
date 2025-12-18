@@ -2,7 +2,7 @@
 
 BEGIN;
 
-CREATE TYPE result_phase AS ENUM ('L1', 'L2', 'L3', 'all')
+CREATE TYPE result_phase AS ENUM ('L1', 'L2', 'L3', 'all');
 
 CREATE TABLE IF NOT EXISTS public.run_result (
     id              uuid PRIMARY KEY,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.run_result (
     label_value     text NOT NULL,
     confidence      float NOT NULL,
     source          text NOT NULL, -- could be algorithm, data app, ...
-    result          jsonb, -- optional JSON blob to store more data
-)
+    result          jsonb -- optional JSON blob to store more data
+);
 
 COMMIT;
