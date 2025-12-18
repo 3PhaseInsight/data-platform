@@ -2,7 +2,11 @@
 
 BEGIN;
 
-CREATE TYPE result_phase AS ENUM ('L1', 'L2', 'L3', 'all');
+CREATE TYPE result_phase AS ENUM (
+    'L1', 'L2', 'L3',
+    'L1,L2', 'L1,L3', 'L2,L3',
+    'all'
+    );
 
 CREATE TABLE IF NOT EXISTS public.run_result (
     id              uuid PRIMARY KEY,
