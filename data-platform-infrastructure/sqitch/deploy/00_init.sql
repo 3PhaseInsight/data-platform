@@ -77,7 +77,7 @@ ALTER TABLE public.file_index
         FOREIGN KEY (batch_id) REFERENCES public.ingest_batch(id) ON DELETE SET NULL;
 
 CREATE TABLE public.meter (
-    id          text PRIMARY KEY,
+    id          bigint PRIMARY KEY,
     first_seen  timestamptz NOT NULL,
     last_seen   timestamptz NOT NULL,
     total_rows  bigint NOT NULL DEFAULT 0,

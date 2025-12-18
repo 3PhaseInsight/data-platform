@@ -6,6 +6,6 @@ BEGIN;
 DROP TABLE IF EXISTS public.sm_phase_mapping;
 
 -- enum
-DROP TYPE IF EXISTS public.phase_enum;
+DROP TYPE IF EXISTS public.phase;
 
 COMMIT;

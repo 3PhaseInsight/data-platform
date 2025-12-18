@@ -55,9 +55,9 @@ BEGIN
         SELECT 1
         FROM pg_type t
         JOIN pg_namespace n ON n.oid = t.typnamespace
-        WHERE n.nspname = 'public' AND t.typname = 'phase_enum'
+        WHERE n.nspname = 'public' AND t.typname = 'phase'
     ) THEN
-        RAISE EXCEPTION 'Type public.phase_enum is missing';
+        RAISE EXCEPTION 'Type public.phase is missing';
     END IF;
 END $$;
 
