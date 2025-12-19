@@ -2,7 +2,7 @@
 
 BEGIN;
 
-CREATE TYPE result_phase AS ENUM (
+CREATE TYPE public.result_phase AS ENUM (
     'L1', 'L2', 'L3',
     'L1,L2', 'L1,L3', 'L2,L3',
     'all'
