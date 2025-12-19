@@ -1,4 +1,4 @@
--- Deploy 3phi-db:04_table_result_label to pg
+-- Deploy 3phi-db:04_tables_result_label to pg
 
 BEGIN;
 
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.run_result (
     id              uuid PRIMARY KEY,
     dag_id          text NOT NULL, -- part 1 of unique dag run identifier
     run_id          text NOT NULL, -- part 2 of unique dag run identifier
-    meter_id        bigint NOT NULL,
+    meter_id        bigint NOT NULL REFERENCES public.meter(id),
     phase           result_phase NOT NULL,
     label_type      text NOT NULL,
     label_value     text NOT NULL,
