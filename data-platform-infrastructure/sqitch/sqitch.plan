@@ -5,4 +5,5 @@
 00_init 2025-09-09T14:36:09Z Chris <chris@inilab.dk> # Init DB with current state.
 01_schema_lv_topology 2025-09-09T14:50:13Z Chris <chris@inilab.dk> # Add lv topology schema and tables
 02_tables_intermediate_results 2025-11-24T13:36:57Z Chris <chris@inilab.dk> # Add tables and columns for intermediate data results
+03_tables_sm_phase_mapper 2025-12-17T14:05:24Z Tian Kjaer Jensen <tian@inilab.dk> # Add table and columns for sm_phase_mapper results
 04_table_result_label 2025-12-17T13:46:39Z Chris <chris@inilab.dk> # Add result label storage
