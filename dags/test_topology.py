@@ -53,7 +53,7 @@ with open(
         max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
     ) as dag:
         test_topology_task = PythonOperator(
-            task_id="ingest_topology",
+            task_id="test_topology",
             python_callable=topologyTester.run,
             doc_md="""
             ## Test Topology
