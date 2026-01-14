@@ -85,16 +85,16 @@ CREATE TABLE public.meter (
 );
 
 CREATE TABLE public.hourly_measurements (
-                                            meter_id   bigint NOT NULL,
-                                            "timestamp" timestamptz NOT NULL,
-                                            consumption real,
-                                            production  real,
-                                            PRIMARY KEY (meter_id, "timestamp")
+    meter_id    bigint NOT NULL,
+    timestamp   timestamptz NOT NULL,
+    consumption real,
+    production  real,
+    PRIMARY KEY (meter_id, "timestamp")
 );
 
 CREATE TABLE public.meter_data (
     meter_id          bigint NOT NULL,
-    "timestamp"       timestamptz NOT NULL,
+    timestamp         timestamptz NOT NULL,
     voltage_phase_1   numeric(10,2),
     voltage_phase_2   numeric(10,2),
     voltage_phase_3   numeric(10,2),
