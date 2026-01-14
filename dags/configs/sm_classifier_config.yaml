@@ -6,7 +6,8 @@ Cluster_settings:
   # memory_limit: "4GB" # Memory limit is PER WORKER
   # # dashboard_address: ':8786'  # Open dask dashboard via http://localhost:8786/
 
-sm_ids: ["100117", "10043", "102145"] # List of SM IDs to apply the SMClassifier to
+data_dir_path: phase_measurements/raw # Path to the directory containing phase measurement data
+sm_ids: ["100117", "100132", "100203"] # List of SM IDs to apply the SMClassifier to
 topology_processing_level: "raw" # Level of processing of topology files. Can be raw, cleaned, or cleaned_and_corrected
 overwrite_existing_raw_sm_datasets: False # If True, it will extract from complete timeseries data instead of using existing raw SM datasets (not recommended)
 overwrite_topology_info: False # If True, it will overwrite any existing SM-topology mappings (intensive)

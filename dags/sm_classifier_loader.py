@@ -8,17 +8,19 @@ from time import time, sleep
 from typing import Union, List
 from threephi_framework import DataApp
 from threephi_framework import DataExtractor
-# import threephi_framework.db.db as threephi_db
+import threephi_framework.db.db as threephi_db
 from dask.distributed import get_client, Client
 from dask import delayed, compute
 from airflow import DAG
+import logging
 from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime
-# from threephi_framework.controllers.topology import TopologyController
+from threephi_framework.controllers.topology import TopologyController
+from threephi_framework.controllers.meta import MetaController
 
 from dtu.sm_classifier import _meter_evaluation
 
-class SMClassifier(DataApp):
+class Save_SMClassifier(DataApp):
 
     # TODO: Is this important??
     # Some variables for plotting
@@ -34,14 +36,15 @@ class SMClassifier(DataApp):
         # self.batch = config.get('Data_batch')
         # self.use_dask = config.get('Use_dask')
         self.data_extractor = DataExtractor()
-        # self.topology_controller = TopologyController(threephi_db.new_session)
+        self.topology_controller = TopologyController(threephi_db.new_session)
+        self.meta_controller = MetaController(threephi_db.new_session)
         self.n_workers = config["Cluster_settings"]["n_workers"]
         self.sm_ids = config.get('sm_ids', "All")
         self.topology_processing_level = config.get('topology_processing_level', None)
         self.overwrite_topology_info = config.get('overwrite_topology_info', False)
         self.overwrite_timeseries_info = config.get('overwrite_timeseries_info', False)
-        self.data_dir_path = config.get('data_dir_path', "phase_measurements/raw")
         self.results_dir = f'{self.data_extractor.s3_base}/sm_classifier'
+        
         # TODO: Check if these are needed
         # self.overwrite_existing_raw_sm_datasets = config.get('overwrite_existing_raw_sm_datasets', False)
         # self.save_results = config.get('save_results', False)
@@ -66,6 +69,11 @@ class SMClassifier(DataApp):
         #     except ValueError:
         #         cluster = self._set_up_cluster(config["Cluster"], config["Cluster_settings"])
         #         client = Client(cluster)
+        
+        # Configure the logger if not already configured
+        if not logging.getLogger().hasHandlers():
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
     # Method to update config settings via the method arguments
     def _update_config(self, args):
@@ -112,11 +120,9 @@ class SMClassifier(DataApp):
             "overwrite_topology_info": self.overwrite_topology_info,
             "overwrite_timeseries_info": self.overwrite_timeseries_info,
             "max_rec_period": None,
-            "data_dir_path": self.data_dir_path,
-            "results_dir": self.results_dir,
         }
 
-    def classify_smart_meters(self, sm_ids: Union[str, List[str]] = None,
+    def save_sm_classification(self, sm_ids: Union[str, List[str]] = None,
                               topology_processing_level: str = None,
                               overwrite_existing_raw_sm_datasets: bool = None,
                               overwrite_topology_info: bool = None,
@@ -129,48 +135,39 @@ class SMClassifier(DataApp):
         # Overwrite config settings with arguments if provided (allows to dynamically change data app run in pipeline)
         self._update_config(args=locals().items())
 
-        # Validate the setup
-        self._check_correct_setup()
-
         # Determine sm_ids to process
         if self.sm_ids == "All":
             # Create a set of all sm_ids from the topology
             sm_ids = sorted(set(self.topology_controller.get_meters()))
         else:
             sm_ids = self.sm_ids
-
-        # Initialize plotting
-        if self.plot_cfg is not None:
-            self.selected_variables = [var.upper() for var in self.plot_cfg["Variable_selection"]]
-            self.selected_phases = [var.lower() for var in self.plot_cfg["Phase_selection"]]
-
-        sm_id_chunks = np.array_split(sm_ids, min(len(sm_ids), self.n_workers))
-        cfg = self._export_cfg()
-        delayed_tasks = [delayed(_meter_evaluation)(sm_ids = sm_ids_chunk, cfg = cfg) for sm_ids_chunk in sm_id_chunks]
-        results_list = compute(*delayed_tasks)
-
-        # result_summary_list = [res for res in results_list]
-
-        # sm_classification = {k: v for d in result_summary_list for k, v in d.items()}
-
-        # self.data_extractor.s3_connector.write_json(path = f"{self.results_dir}/CHECK_RESULTS_{self.run_name}.json", data = sm_classification)
+        
+        meter_id = sm_ids[0]
+        earlier_result = self.data_extractor.s3_connector.read_json(path = f"{self.results_dir}/sm_classification_{meter_id}.json")
 
 
-        # result_summary = {k: [] for k in result_summary_list[0]}
-        # for d in result_summary_list:
-        #     for k in result_summary:
-        #         result_summary[k].extend(d[k])
-        sleep(1)
+        logging.info(f"Earlier result: {earlier_result}")
+        logging.info(f"Now injecting in the meta_controller!")
 
-        # return sm_classification
 
-    def run(self):
-        self.classify_smart_meters()
+        self.meta_controller.update_sm_characterization(meter_id = meter_id, data = earlier_result)
+
+        logging.info("Done injecting! Will start loading results now...")
+
+        results = self.meta_controller.get_sm_characterization(meter_id = meter_id)
+        logging.info(f"SM {meter_id} classification: {results}")
+        
+        # Save results to S3
+        # self.data_extractor.s3_connector.write_json(path = f"{self.results_dir}/sm_classification_{now}.json", data = results)
+
+        # return results
+
+    
 
 config_file = "sm_classifier_config.yaml"
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:
     pipeline_config = yaml.safe_load(file)
-    sm_classifier = SMClassifier(config=pipeline_config)
+    save_sm_classifier = Save_SMClassifier(config=pipeline_config)
 
     # Default DAG args
     default_args = {
@@ -183,19 +180,19 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', co
 
     # Define DAG
     with DAG(
-        dag_id="sm_classifier",
-        description="Classify Smart Meters based on topology and data quality",
+        dag_id="save_sm_classifier",
+        description="SAVE Smart Meters Classification based on topology and data quality",
         default_args=default_args,
         start_date=datetime.now(),
         catchup=False,
         max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
     ) as dag:
-        sm_classifier_task = PythonOperator(
-            task_id="Classify_Smart_Meters",
-            python_callable=sm_classifier.run,
+        save_sm_classifier_task = PythonOperator(
+            task_id="Save_SM_Classification",
+            python_callable=save_sm_classifier.save_sm_classification,
             doc_md="""
-            ## Classify Smart Meters DAG
+            ## SAVE Smart Meters Classification DAG
             """,
         )
 
-        sm_classifier_task
+        save_sm_classifier_task
