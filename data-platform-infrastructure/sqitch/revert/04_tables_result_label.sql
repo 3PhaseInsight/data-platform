@@ -1,4 +1,4 @@
--- Revert 3phi-db:04_table_result_label from pg
+-- Revert 3phi-db:04_tables_result_label from pg
 
 BEGIN;
 
