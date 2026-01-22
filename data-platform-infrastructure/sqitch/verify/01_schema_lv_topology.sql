@@ -25,14 +25,13 @@ SELECT 1 FROM information_schema.tables WHERE table_schema='lv' AND table_name='
 
 -- Key columns present
 SELECT 1 FROM information_schema.columns WHERE table_schema='lv' AND table_name='node' AND column_name='version';
-SELECT 1 FROM information_schema.columns WHERE table_schema='lv' AND table_name='edge' AND column_name='edge_id';
+SELECT 1 FROM information_schema.columns WHERE table_schema='lv' AND table_name='edge' AND column_name='id';
 SELECT 1 FROM information_schema.columns WHERE table_schema='lv' AND table_name='cable'   AND column_name='cable_id';
 SELECT 1 FROM information_schema.columns WHERE table_schema='lv' AND table_name='edge_cable' AND column_name='seq_no';
 
 -- Views exist
 SELECT 1 FROM information_schema.views WHERE table_schema='lv' AND table_name='node_current';
 SELECT 1 FROM information_schema.views WHERE table_schema='lv' AND table_name='edge_current';
-SELECT 1 FROM information_schema.views WHERE table_schema='lv' AND table_name='edge_with_totals';
 SELECT 1 FROM information_schema.views WHERE table_schema='lv' AND table_name='edge_current_with_totals';
 
 COMMIT;
