@@ -1,26 +1,21 @@
 import os
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-from matplotlib import pyplot as plt
 import yaml
+import logging
 from time import time, sleep
 from typing import Union, List
 from threephi_framework import DataApp
 from threephi_framework import DataExtractor
-# import threephi_framework.db.db as threephi_db
 from dask.distributed import get_client, Client
 from dask import delayed, compute
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime
-# from threephi_framework.controllers.topology import TopologyController
 
 from dtu.sm_classifier import _meter_evaluation
 
 class SMClassifier(DataApp):
 
-    # TODO: Is this important??
     # Some variables for plotting
     ALLOWED_VARIABLES = {"V", "P14", "P23", "Q12", "Q34"}
     ALLOWED_PHASES = {"L1", "L2", "L3"}
@@ -42,6 +37,7 @@ class SMClassifier(DataApp):
         self.overwrite_timeseries_info = config.get('overwrite_timeseries_info', False)
         self.data_dir_path = config.get('data_dir_path', "phase_measurements/raw")
         self.results_dir = f'{self.data_extractor.s3_base}/sm_classifier'
+        self.max_rec_period = config.get('max_rec_period', None)
         # TODO: Check if these are needed
         # self.overwrite_existing_raw_sm_datasets = config.get('overwrite_existing_raw_sm_datasets', False)
         # self.save_results = config.get('save_results', False)
@@ -96,6 +92,7 @@ class SMClassifier(DataApp):
     def _export_cfg(self) -> dict:
         return {
             "run_name": self.run_name,
+            "save_plots": self.save_plots,
             "plot_cfg": self.plot_cfg,
             "no_data_limit": self.no_data_limit,
             "good_data_limit": self.good_data_limit,
@@ -104,14 +101,15 @@ class SMClassifier(DataApp):
             "offset_threshold": self.offset_threshold,
             "cons_period_threshold": self.cons_period_threshold,
             "frozen_range": self.frozen_range,
-            "selected_variables": self.selected_variables if self.plot_cfg is not None else None,
-            "selected_phases": self.selected_phases if self.plot_cfg is not None else None,
+            "selected_variables": [var.upper() for var in self.plot_cfg["Variable_selection"]] if self.plot_cfg is not None else None,
+            "selected_phases": [var.lower() for var in self.plot_cfg["Phase_selection"]] if self.plot_cfg is not None else None,
+            "voltage_col": self.plot_cfg["voltage_col"] if self.plot_cfg is not None else None,
             "phases":  ["l1", "l2", "l3"],
             "variables": ["v", "p14", "p23", "q12", "q34"],
             "topology_processing_level": self.topology_processing_level,
             "overwrite_topology_info": self.overwrite_topology_info,
             "overwrite_timeseries_info": self.overwrite_timeseries_info,
-            "max_rec_period": None,
+            "max_rec_period": self.max_rec_period,
             "data_dir_path": self.data_dir_path,
             "results_dir": self.results_dir,
         }
@@ -124,6 +122,7 @@ class SMClassifier(DataApp):
                               run_name: str = None,
                               save_results: bool = None,
                               save_plots: bool = None,
+                              max_rec_period: int = None,
                               plot_cfg: dict = None) -> tuple:
 
         # Overwrite config settings with arguments if provided (allows to dynamically change data app run in pipeline)
@@ -139,33 +138,18 @@ class SMClassifier(DataApp):
         else:
             sm_ids = self.sm_ids
 
-        # Initialize plotting
-        if self.plot_cfg is not None:
-            self.selected_variables = [var.upper() for var in self.plot_cfg["Variable_selection"]]
-            self.selected_phases = [var.lower() for var in self.plot_cfg["Phase_selection"]]
+        logging.info(f"Starting SM Classification for smart meters: {sm_ids}.")
 
         sm_id_chunks = np.array_split(sm_ids, min(len(sm_ids), self.n_workers))
         cfg = self._export_cfg()
         delayed_tasks = [delayed(_meter_evaluation)(sm_ids = sm_ids_chunk, cfg = cfg) for sm_ids_chunk in sm_id_chunks]
-        results_list = compute(*delayed_tasks)
+        compute(*delayed_tasks)
 
-        # result_summary_list = [res for res in results_list]
+        logging.info(f"SM Classification completed.")
 
-        # sm_classification = {k: v for d in result_summary_list for k, v in d.items()}
-
-        # self.data_extractor.s3_connector.write_json(path = f"{self.results_dir}/CHECK_RESULTS_{self.run_name}.json", data = sm_classification)
-
-
-        # result_summary = {k: [] for k in result_summary_list[0]}
-        # for d in result_summary_list:
-        #     for k in result_summary:
-        #         result_summary[k].extend(d[k])
-        sleep(1)
-
-        # return sm_classification
 
     def run(self):
-        self.classify_smart_meters()
+        self.classify_smart_meters(max_rec_period=None)
 
 config_file = "sm_classifier_config.yaml"
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:

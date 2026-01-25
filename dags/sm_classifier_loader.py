@@ -1,9 +1,10 @@
 import os
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
+# matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import yaml
+import dask.dataframe as dd
 from time import time, sleep
 from typing import Union, List
 from threephi_framework import DataApp
@@ -20,6 +21,23 @@ from threephi_framework.controllers.meta import MetaController
 
 from dtu.sm_classifier import _meter_evaluation
 
+# For meta controller
+import logging
+from collections.abc import Callable
+from typing import Any
+from sqlalchemy.orm import Session
+
+from threephi_framework.resources.meta.meter import MetaMeterResource
+from threephi_framework.resources.topology.assets.meter import MeterResource
+from threephi_framework.db_connector import DBConnector
+from threephi_framework.s3_connector import S3Connector
+
+from threephi_framework.data_extractor.schemas.phase_measurements.v1 import (
+    VERSION,
+    PhaseMeasurementsCsvSchema,
+    PhaseMeasurementsParquetSchema,
+)
+
 class Save_SMClassifier(DataApp):
 
     # TODO: Is this important??
@@ -27,7 +45,7 @@ class Save_SMClassifier(DataApp):
     ALLOWED_VARIABLES = {"V", "P14", "P23", "Q12", "Q34"}
     ALLOWED_PHASES = {"L1", "L2", "L3"}
 
-    def __init__(self, config):
+    def __init__(self, config, session_factory: Callable[[], Session]):
 
         # Set up the config settings from the parent class
         super().__init__(config)
@@ -36,6 +54,8 @@ class Save_SMClassifier(DataApp):
         # self.batch = config.get('Data_batch')
         # self.use_dask = config.get('Use_dask')
         self.data_extractor = DataExtractor()
+        self.db_connector = DBConnector()
+        self.s3_connector = S3Connector()
         self.topology_controller = TopologyController(threephi_db.new_session)
         self.meta_controller = MetaController(threephi_db.new_session)
         self.n_workers = config["Cluster_settings"]["n_workers"]
@@ -44,6 +64,15 @@ class Save_SMClassifier(DataApp):
         self.overwrite_topology_info = config.get('overwrite_topology_info', False)
         self.overwrite_timeseries_info = config.get('overwrite_timeseries_info', False)
         self.results_dir = f'{self.data_extractor.s3_base}/sm_classifier'
+        self.phase_measurements_csv_schema = PhaseMeasurementsCsvSchema()
+        self.phase_measurements_parquet_schema = PhaseMeasurementsParquetSchema()
+
+
+        # For meta controller
+        self._sf = session_factory
+        self.meta_meter_resource = MetaMeterResource(self._sf())
+        self.topology_meter_resource = MeterResource(self._sf())
+
         
         # TODO: Check if these are needed
         # self.overwrite_existing_raw_sm_datasets = config.get('overwrite_existing_raw_sm_datasets', False)
@@ -80,47 +109,6 @@ class Save_SMClassifier(DataApp):
         for arg_name, arg_value in args:
             if arg_name != 'self' and arg_value is not None:
                 setattr(self, arg_name, arg_value)
-    
-    def _check_correct_setup(self):
-        
-        # Check and store user settings
-        if not (isinstance(self.sm_ids, str) or (isinstance(self.sm_ids, list) and all(isinstance(i, str) for i in self.sm_ids))):
-            raise TypeError("sm_ids must be set 'All' or user-specified SM IDs as string or list of strings.")
-
-        if not isinstance(self.run_name, str):
-            raise TypeError("run_name must be a string.")
-
-        if sum(self.plot_cfg["SM_selection"].values()) == 0:
-            raise ValueError("At least one 'SM_selection' option in the plot_cfg must be set to True.")
-        if not set(var.upper() for var in self.plot_cfg["Variable_selection"]).issubset(self.ALLOWED_VARIABLES):
-            raise ValueError(f"'Variable_selection' in the plot_cfg contains invalid entries. Allowed entries: {self.ALLOWED_VARIABLES}")
-        if not set(self.plot_cfg["Variable_selection"]):
-            raise ValueError("At least one variable must be selected in 'Variable_selection' of the plot_cfg.")
-        if not set(var.upper() for var in self.plot_cfg["Phase_selection"]).issubset(self.ALLOWED_PHASES):
-            raise ValueError(f"'Phase_selection' in the plot_cfg contains invalid entries. Allowed entries: {self.ALLOWED_PHASES}")
-        if not set(self.plot_cfg["Phase_selection"]):
-            raise ValueError("At least one phase must be selected in 'Phase_selection' of the plot_cfg.")
-
-    def _export_cfg(self) -> dict:
-        return {
-            "run_name": self.run_name,
-            "plot_cfg": self.plot_cfg,
-            "no_data_limit": self.no_data_limit,
-            "good_data_limit": self.good_data_limit,
-            "medium_data_limit": self.medium_data_limit,
-            "v_lim": self.v_lim,
-            "offset_threshold": self.offset_threshold,
-            "cons_period_threshold": self.cons_period_threshold,
-            "frozen_range": self.frozen_range,
-            "selected_variables": self.selected_variables if self.plot_cfg is not None else None,
-            "selected_phases": self.selected_phases if self.plot_cfg is not None else None,
-            "phases":  ["l1", "l2", "l3"],
-            "variables": ["v", "p14", "p23", "q12", "q34"],
-            "topology_processing_level": self.topology_processing_level,
-            "overwrite_topology_info": self.overwrite_topology_info,
-            "overwrite_timeseries_info": self.overwrite_timeseries_info,
-            "max_rec_period": None,
-        }
 
     def save_sm_classification(self, sm_ids: Union[str, List[str]] = None,
                               topology_processing_level: str = None,
@@ -135,39 +123,119 @@ class Save_SMClassifier(DataApp):
         # Overwrite config settings with arguments if provided (allows to dynamically change data app run in pipeline)
         self._update_config(args=locals().items())
 
-        # Determine sm_ids to process
-        if self.sm_ids == "All":
-            # Create a set of all sm_ids from the topology
-            sm_ids = sorted(set(self.topology_controller.get_meters()))
-        else:
-            sm_ids = self.sm_ids
+        # # Determine sm_ids to process
+        # if self.sm_ids == "All":
+        #     # Create a set of all sm_ids from the topology
+        #     sm_ids = sorted(set(self.topology_controller.get_meters()))
+        # else:
+        #     sm_ids = self.sm_ids
         
-        meter_id = sm_ids[0]
-        earlier_result = self.data_extractor.s3_connector.read_json(path = f"{self.results_dir}/sm_classification_{meter_id}.json")
+        # for meter_id in sm_ids:
+        #     logging.info(f"Processing SM ID: {meter_id}. Is meter_id an integer? {isinstance(meter_id, int)}")
+
+        #     results = self.meta_controller.get_sm_characterization(meter_id = meter_id)
+        #     logging.info(f"SM {meter_id} classification: {results}")
 
 
-        logging.info(f"Earlier result: {earlier_result}")
-        logging.info(f"Now injecting in the meta_controller!")
+        def fill_in_postgres():
+            import datetime as dt
+            import uuid
+            import glob
 
 
-        self.meta_controller.update_sm_characterization(meter_id = meter_id, data = earlier_result)
+            csv_path = "/opt/airflow/data"
+            csv_file_pattern = "phase_measurements_*.csv"
 
-        logging.info("Done injecting! Will start loading results now...")
+            csv_ts_col = self.phase_measurements_csv_schema.timestamp_col
+            parquet_ts_col = self.phase_measurements_parquet_schema.timestamp_col
+            parquet_meter_col = self.phase_measurements_parquet_schema.meter_col
 
-        results = self.meta_controller.get_sm_characterization(meter_id = meter_id)
-        logging.info(f"SM {meter_id} classification: {results}")
+            csv_path_pattern = os.path.join(csv_path, csv_file_pattern)
+            logging.info(f"Reading CSVs from {csv_path_pattern}")
+            csv_files = glob.glob(csv_path_pattern)
+            run_id = dt.datetime.now(dt.UTC).strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
+            for csv_path in csv_files:
+                logging.info(f"Processing {csv_path}")
+                # ---------------------------------
+                # Create batch row for file
+                # ---------------------------------
+                batch_id = self.db_connector.insert_batch(csv_path, run_id)
+
+                # ---------------------------------
+                # Read in CSV,
+                # normalize timestamp to UTC,
+                # rename timestamp column,
+                # type important cols,
+                # drop rows with invalid timestamps,
+                # drop rows without meter_number
+                # ---------------------------------
+
+                dask_df = dd.read_csv(csv_path, parse_dates=[csv_ts_col])
+                dask_df[csv_ts_col] = dd.to_datetime(dask_df[csv_ts_col], utc=True, errors="coerce")
+                dask_df = dask_df.rename(columns={csv_ts_col: parquet_ts_col})
+                dask_df[parquet_meter_col] = dask_df[parquet_meter_col].astype("string")
+                dask_df = dask_df.dropna(subset=[parquet_ts_col])
+                dask_df = dask_df.dropna(subset=[parquet_meter_col])
+
+                # ---------------------------------
+                # Get stats for meter inventory table
+                # ---------------------------------
+                stats_workflow = f"{csv_path}_stats"
+                if not self.db_connector.is_workflow_completed(stats_workflow):
+                    self.db_connector.start_workflow(stats_workflow)
+
+                    logging.info("Computing meter inventory stats.")
+                    stats_ddf = dask_df[[parquet_meter_col, parquet_ts_col]]
+                    agg_ddf = stats_ddf.groupby(parquet_meter_col)[parquet_ts_col].agg(["min", "max", "count"])
+
+                    agg_pdf = agg_ddf.compute()
+                    agg_pdf = agg_pdf.rename(columns={"min": "first_seen", "max": "last_seen", "count": "total_rows"})
+                    agg_pdf = agg_pdf.reset_index(names=["id"])
+                    self.db_connector.upsert_meter_stats(agg_pdf)
+                    self.db_connector.complete_workflow(stats_workflow)
+                    logging.info("Successfully computed and stored stats.")
         
-        # Save results to S3
-        # self.data_extractor.s3_connector.write_json(path = f"{self.results_dir}/sm_classification_{now}.json", data = results)
+        
+        def get_timeseries_data():
+            
+            timeseries = self.data_extractor.v1_get_timeseries_info()
 
-        # return results
+            """
+            Function for extracting some information from the timeseries data.
 
+            Information:
+                - min_timestamp: earliest SM measurement timestamp
+                - max_timestamp: last SM measurement timestamp
+                - id_list_of_sms_with_data: list of meter IDS that we have data for
+            """
+            logging.info(f"min_timestamp: {timeseries['min_timestamp']}")
+            logging.info(f"max_timestamp: {timeseries['max_timestamp']}")
+            logging.info(f"Number of SMs with data: {len(timeseries['id_list_of_sms_with_data'])}")
+        
+        def get_timeseries_data_2():
+            self.data_extractor._get_timeseries_info_db()
+            sm_with_data = self.data_extractor.id_list_of_sms_with_data
+            logging.info(f"Number of SMs with data (from DB): {len(sm_with_data)}")
+            logging.info(f"Some SM IDs with data: {sm_with_data[:10]}")
+
+            # Ensure that sm_with_data has strings as elements
+            sm_with_data = [str(sm_id) for sm_id in sm_with_data]
+
+            for sm_id in self.sm_ids:
+                logging.info(f"SM_id {sm_id} exist in data: {sm_id in sm_with_data}")
+
+        def load_classification_results():
+            for meter_id in self.sm_ids:
+                results = self.meta_controller.get_sm_characterization(meter_id = meter_id)
+                logging.info(f"SM {meter_id} classification: {results}")
+
+        load_classification_results()
     
 
 config_file = "sm_classifier_config.yaml"
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:
     pipeline_config = yaml.safe_load(file)
-    save_sm_classifier = Save_SMClassifier(config=pipeline_config)
+    save_sm_classifier = Save_SMClassifier(config=pipeline_config, session_factory=threephi_db.new_session)
 
     # Default DAG args
     default_args = {
