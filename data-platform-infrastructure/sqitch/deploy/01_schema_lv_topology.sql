@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS lv.node(
     UNIQUE (version, cabinet_id),
 
     -- Exactly one of feeder_id/cabinet_id set, matching type
-    CHECK (
+    CONSTRAINT lv_node_exactly_one_id_chk CHECK (
     (node_type = 'LvFeeder' AND feeder_id IS NOT NULL AND cabinet_id IS NULL) OR
     (node_type = 'Cabinet'  AND cabinet_id IS NOT NULL AND feeder_id IS NULL)
     )

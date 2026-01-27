@@ -7,3 +7,5 @@
 02_tables_intermediate_results 2025-11-24T13:36:57Z Chris <chris@inilab.dk> # Add tables and columns for intermediate data results
 03_tables_sm_phase_mapper 2025-12-17T14:05:24Z Tian Kjaer Jensen <tian@inilab.dk> # Add table and columns for sm_phase_mapper results
 04_tables_result_label 2025-12-17T13:46:39Z Chris <chris@inilab.dk> # Add result label storage
+05a_enum_node_type_delivery_point 2026-01-19T12:51:07Z Chris <chris@inilab.dk> # Treat delivery points as nodes
+05b_tables_topology_delivery_point_nodes 2026-01-19T13:32:45Z Chris <chris@inilab.dk> # Treat delivery points as nodes
