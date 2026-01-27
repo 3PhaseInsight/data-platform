@@ -1,19 +1,17 @@
-
-
-# TODO: Add plotting functionality later
-
 def _save_sm_plot(sm_id, sm_df, sm_id_results, cfg):
 
     import matplotlib
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
     import os
+    from threephi_framework import S3Connector
+
+    s3_connector = S3Connector()
 
     # Determine under which directories the plot has to be saved according to user settings and data characteristics
     dirs_to_save = []
     plot_selection = cfg["plot_cfg"]["SM_selection"]
 
-    # TODO: Fix this, so result_summary is passed
     if plot_selection["All_(with_dataset_containing_data)"]:
         if not sm_df.empty and ((sm_df.notna() & (sm_df != 0)).any(axis=1)).any():
             dirs_to_save.append(os.path.join("Plots", "All_SMs_with_dataset_containing_data"))
@@ -90,7 +88,7 @@ def _save_sm_plot(sm_id, sm_df, sm_id_results, cfg):
 
         # Plot voltage if selected
         if row.startswith("voltage_") and "V" in cfg["selected_variables"]:
-            col_name = f"voltage_{phase}_{sm_id}"
+            col_name = f"voltage_{phase}"
             axes[row_index].plot(sm_df[col_name], label=col_name)
             axes[row_index].set_ylabel("V [V]")
             axes[row_index].set_title(f"Voltage - Phase {phase.upper()}")
@@ -100,10 +98,10 @@ def _save_sm_plot(sm_id, sm_df, sm_id_results, cfg):
         # Plot active power if selected (P14 and P23 together in the same subplot)
         elif row.startswith("active_power_") and any(var in cfg["selected_variables"] for var in ["P14", "P23"]):
             if "P23" in cfg["selected_variables"]:
-                col_name_p23 = f"active_power_P23_{phase}_{sm_id}"
+                col_name_p23 = f"active_power_p23_{phase}"
                 axes[row_index].plot(-sm_df[col_name_p23], label="Production")
             if "P14" in cfg["selected_variables"]:
-                col_name_p14 = f"active_power_P14_{phase}_{sm_id}"
+                col_name_p14 = f"active_power_p14_{phase}"
                 axes[row_index].plot(sm_df[col_name_p14], label="Consumption")
             axes[row_index].set_ylabel("P [W]")
             axes[row_index].set_title(f"Active Power - Phase {phase.upper()}")
@@ -116,10 +114,10 @@ def _save_sm_plot(sm_id, sm_df, sm_id_results, cfg):
         # Plot reactive power if selected (Q12 and Q34 together in the same subplot)
         elif row.startswith("reactive_power_") and any(var in cfg["selected_variables"] for var in ["Q12", "Q34"]):
             if "Q12" in cfg["selected_variables"]:
-                col_name_q12 = f"reactive_power_Q12_{phase}_{sm_id}"
+                col_name_q12 = f"reactive_power_q12_{phase}"
                 axes[row_index].plot(sm_df[col_name_q12], label="Inductive")
             if "Q34" in cfg["selected_variables"]:
-                col_name_q34 = f"reactive_power_Q34_{phase}_{sm_id}"
+                col_name_q34 = f"reactive_power_q34_{phase}"
                 axes[row_index].plot(-sm_df[col_name_q34], label="Capacitive")
             axes[row_index].set_ylabel("Q [Var]")
             axes[row_index].set_title(f"Reactive Power - Phase {phase.upper()}")
@@ -138,12 +136,23 @@ def _save_sm_plot(sm_id, sm_df, sm_id_results, cfg):
     # Adjust layout to prevent overlap
     plt.tight_layout(rect=(0, 0, 1, 0.98))
 
-    # Save the plot to all applicable directories
-    for d in dirs_to_save:
-        _dir = os.path.join(cfg["results_dir"], d)
-        plt.savefig(os.path.join(_dir, f'SM_{sm_id}_plot.svg'))
+    # get plotting settings
+    plot_format = cfg["plot_cfg"]["Plotting_format"]
+    format = plot_format["plot_format"]
+    dpi = plot_format["plot_dpi"]
+    transparent = plot_format["plot_transparent"]
+    overwrite_plots = plot_format["overwrite_plots"]
 
-    plt.close(fig)
+    # Create filename
+    filename = f"SM_{sm_id}_plot.{format}"
+
+    for d in dirs_to_save:
+
+        d_norm = str(d).replace("\\", "/").lstrip("/")
+
+        s3_path = f"{cfg['results_dir']}/{d_norm}/{filename}"
+        
+        s3_connector.save_plot(s3_path, fig, format=format, transparent=transparent, dpi=dpi, overwrite=overwrite_plots)
 
 def _meter_evaluation(sm_ids, cfg):
 
@@ -190,9 +199,9 @@ def _meter_evaluation(sm_ids, cfg):
             # Load smart meter data
             # TODO: Add functionalities for cleaned and corrected?
             sm_df = data_extractor.v1_get_single_meter_data(sm_id)
-
-            # Create pandas dataframe
             sm_df = sm_df.compute()
+            sm_df.set_index("timestamp", inplace=True)
+            sm_df.index = pd.to_datetime(sm_df.index).tz_convert("UTC")
 
             # Get maximum recording period (sm_df all are of this length and just have nan in beginning and end)
             cfg["max_rec_period"] = len(sm_df) if cfg["max_rec_period"] is None else cfg["max_rec_period"]
@@ -216,11 +225,6 @@ def _meter_evaluation(sm_ids, cfg):
             sm_id_results["Connectivity"]["Switching Phases"] = []
 
             for phase in cfg["phases"]:
-
-                """ 
-                TODO: Instead of "voltage_", maybe use DataExtractor.voltage_col to be consistent. 
-                You however need to correct {phase}, in that chase, since {phase} contain "l"+number, instead of just number
-                """
                 
                 # Check data quality for V
                 is_nan = sm_df_with_data[f"voltage_{phase}"].isna()  # which entries are nan (True/False)
@@ -305,7 +309,6 @@ def _meter_evaluation(sm_ids, cfg):
                     sm_id_results["Data Statistics"][phase.upper()][variable.upper()]["Mean"] = float(val) if pd.notna(val := sm_df_with_data[col_name].mean(skipna=True)) else None
                     sm_id_results["Data Statistics"][phase.upper()][variable.upper()]["Std"] = float(val) if pd.notna(val := sm_df_with_data[col_name].std(skipna=True)) else None
 
-            # TODO: Check how plotting can be implemented later
             # Save plot on request (with option to create plots only for certain criteria like has connection error)
             if cfg["save_plots"]:
                 _save_sm_plot(sm_id, sm_df, sm_id_results, cfg)

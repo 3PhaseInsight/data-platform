@@ -136,65 +136,6 @@ class Save_SMClassifier(DataApp):
         #     results = self.meta_controller.get_sm_characterization(meter_id = meter_id)
         #     logging.info(f"SM {meter_id} classification: {results}")
 
-
-        def fill_in_postgres():
-            import datetime as dt
-            import uuid
-            import glob
-
-
-            csv_path = "/opt/airflow/data"
-            csv_file_pattern = "phase_measurements_*.csv"
-
-            csv_ts_col = self.phase_measurements_csv_schema.timestamp_col
-            parquet_ts_col = self.phase_measurements_parquet_schema.timestamp_col
-            parquet_meter_col = self.phase_measurements_parquet_schema.meter_col
-
-            csv_path_pattern = os.path.join(csv_path, csv_file_pattern)
-            logging.info(f"Reading CSVs from {csv_path_pattern}")
-            csv_files = glob.glob(csv_path_pattern)
-            run_id = dt.datetime.now(dt.UTC).strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
-            for csv_path in csv_files:
-                logging.info(f"Processing {csv_path}")
-                # ---------------------------------
-                # Create batch row for file
-                # ---------------------------------
-                batch_id = self.db_connector.insert_batch(csv_path, run_id)
-
-                # ---------------------------------
-                # Read in CSV,
-                # normalize timestamp to UTC,
-                # rename timestamp column,
-                # type important cols,
-                # drop rows with invalid timestamps,
-                # drop rows without meter_number
-                # ---------------------------------
-
-                dask_df = dd.read_csv(csv_path, parse_dates=[csv_ts_col])
-                dask_df[csv_ts_col] = dd.to_datetime(dask_df[csv_ts_col], utc=True, errors="coerce")
-                dask_df = dask_df.rename(columns={csv_ts_col: parquet_ts_col})
-                dask_df[parquet_meter_col] = dask_df[parquet_meter_col].astype("string")
-                dask_df = dask_df.dropna(subset=[parquet_ts_col])
-                dask_df = dask_df.dropna(subset=[parquet_meter_col])
-
-                # ---------------------------------
-                # Get stats for meter inventory table
-                # ---------------------------------
-                stats_workflow = f"{csv_path}_stats"
-                if not self.db_connector.is_workflow_completed(stats_workflow):
-                    self.db_connector.start_workflow(stats_workflow)
-
-                    logging.info("Computing meter inventory stats.")
-                    stats_ddf = dask_df[[parquet_meter_col, parquet_ts_col]]
-                    agg_ddf = stats_ddf.groupby(parquet_meter_col)[parquet_ts_col].agg(["min", "max", "count"])
-
-                    agg_pdf = agg_ddf.compute()
-                    agg_pdf = agg_pdf.rename(columns={"min": "first_seen", "max": "last_seen", "count": "total_rows"})
-                    agg_pdf = agg_pdf.reset_index(names=["id"])
-                    self.db_connector.upsert_meter_stats(agg_pdf)
-                    self.db_connector.complete_workflow(stats_workflow)
-                    logging.info("Successfully computed and stored stats.")
-        
         
         def get_timeseries_data():
             
@@ -229,7 +170,39 @@ class Save_SMClassifier(DataApp):
                 results = self.meta_controller.get_sm_characterization(meter_id = meter_id)
                 logging.info(f"SM {meter_id} classification: {results}")
 
-        load_classification_results()
+        def load_sm():
+
+            import pandas as pd
+
+            self.data_extractor = DataExtractor(phase_measurements_dir = "phase_measurements/raw")
+
+            sm_data = self.data_extractor.v1_get_single_meter_data(id = self.sm_ids[0])
+            sm_data = sm_data.compute()
+
+            sm_data["timestamp"] = pd.to_datetime(sm_data["timestamp"], unit="ms", utc=True)
+            sm_data = sm_data.set_index("timestamp").sort_index()
+            sm_data = sm_data.drop(columns=["__index_level_0__"], errors="ignore")
+
+            logging.info(f"SM {self.sm_ids[0]} data columns:\n{sm_data.columns}")
+            logging.info(f"SM {self.sm_ids[0]} first index:\n{sm_data.index.min()}")
+            logging.info(f"SM {self.sm_ids[0]} last index:\n{sm_data.index.max()}")
+
+        def load_sm_save():
+            self.data_extractor = DataExtractor(phase_measurements_dir = "phase_measurements/raw")
+
+            sm_data = self.data_extractor.v1_get_single_meter_data(id = self.sm_ids[0])
+            sm_data = sm_data.compute()
+            logging.info(f"SM {self.sm_ids[0]} data columns:\n{sm_data.columns}")
+
+            s3_connector = S3Connector()
+            s3_base = self.data_extractor.s3_base
+            s3_connector.write_parquet(
+                path = f"{s3_base}/sm_classifier/sm_17.parquet",
+                df = sm_data,
+            )
+
+        
+        load_sm()
     
 
 config_file = "sm_classifier_config.yaml"

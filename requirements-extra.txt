@@ -1,2 +1,10 @@
 # requirements that diverge from the airflow constraint but are needed
 sqlalchemy==2.0.44
+
+# StatLabeler
+scipy
+statsmodels
+
+# SM_classifier
+matplotlib==3.10.7
+Pillow==12.0.0
