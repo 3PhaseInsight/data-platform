@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from threephi_framework.resources.meta.meter import MetaMeterResource
 from threephi_framework.resources.topology.assets.meter import MeterResource
 from threephi_framework.db_connector import DBConnector
-from threephi_framework.s3_connector import S3Connector
+from threephi_framework import S3Connector
 
 from threephi_framework.data_extractor.schemas.phase_measurements.v1 import (
     VERSION,
