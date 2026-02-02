@@ -32,9 +32,12 @@ ALTER TABLE public.run_result
   DROP COLUMN IF EXISTS cable_id,
   DROP COLUMN IF EXISTS topology_version;
 
--- 5) Restore meter_id NOT NULL (only safe if there are no rows with meter_id NULL)
--- If you might have such rows, you must delete/repair them before reverting.
+-- 5) Restore NOT NULL constraints (only safe if there are no rows that would become invalid)
+-- if there are conflicts when reverting, resolve manually
 ALTER TABLE public.run_result
   ALTER COLUMN meter_id SET NOT NULL;
+
+ALTER TABLE public.run_result
+  ALTER COLUMN phase SET NOT NULL;
 
 COMMIT;

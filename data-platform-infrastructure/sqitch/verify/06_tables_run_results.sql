@@ -44,6 +44,17 @@ BEGIN
     RAISE EXCEPTION 'verify failed: public.run_result.meter_id is still NOT NULL';
   END IF;
 
+    -- phase is nullable
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public'
+      AND table_name='run_result'
+      AND column_name='phase'
+      AND is_nullable='YES'
+  ) THEN
+    RAISE EXCEPTION 'verify failed: public.run_result.meter_id is still NOT NULL';
+  END IF;
+
   -- Check constraints
   IF NOT EXISTS (
     SELECT 1

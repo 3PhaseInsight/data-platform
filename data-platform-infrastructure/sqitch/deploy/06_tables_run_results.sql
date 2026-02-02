@@ -11,6 +11,10 @@ BEGIN;
     ALTER TABLE public.run_result
         ALTER COLUMN meter_id DROP NOT NULL;
 
+    -- drop phase NOT NULL constraint
+    ALTER TABLE public.run_result
+        ALTER COLUMN phase DROP NOT NULL;
+
     -- versioned graph entity pointers
     ALTER TABLE public.run_result
         ADD COLUMN node_id  bigint, -- lv_feeder's, cabinet's or delivery_point's node_id (from lv.node)
