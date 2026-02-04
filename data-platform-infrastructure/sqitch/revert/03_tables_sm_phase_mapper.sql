@@ -3,9 +3,9 @@
 BEGIN;
 
 -- Table
-DROP TABLE IF EXISTS public.sm_phase_mapping;
+DROP TABLE IF EXISTS :meta_schema.sm_phase_mapping;
 
 -- enum
-DROP TYPE IF EXISTS public.phase;
+DROP TYPE IF EXISTS :meta_schema.phase;
 
 COMMIT;

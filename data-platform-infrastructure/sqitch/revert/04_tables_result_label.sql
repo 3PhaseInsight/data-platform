@@ -2,7 +2,7 @@
 
 BEGIN;
 
-DROP TABLE IF EXISTS public.run_result;
+DROP TABLE IF EXISTS :meta_schema.run_result;
 DROP TYPE IF EXISTS result_phase;
 
 COMMIT;

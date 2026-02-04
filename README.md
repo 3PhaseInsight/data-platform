@@ -101,3 +101,17 @@ The custom airflow image is built so the defined dags and the source code are av
 
 ### Dask
 The custom dask image is built, so the source code is bundled directly in the image.
+
+
+## Environment Variables
+
+| Env Variable | Description, possible Values |
+| --- | --- |
+| DB_TYPE | POSTGRES, MS_SQL |
+| DB_USER | Your DB Username |
+| DB_PASSWORD | Your DB Password |
+| DB_HOST | Host the DB is running on |
+| DB_PORT | Port the DB is reachable on |
+| DB_NAME | Name of the DB |
+| META_SCHEMA | DB Schema where the meta data is stored, default: "meta" |
+| LV_SCHEMA | DB Schema where the LV Topology Data is stored, default: "lv" |

@@ -2,7 +2,7 @@
 
 BEGIN;
 
-ALTER TABLE public.meter
+ALTER TABLE :meta_schema.meter
 ADD COLUMN data_quality jsonb,
 ADD COLUMN data_statistics jsonb,
 ADD COLUMN connectivity jsonb;

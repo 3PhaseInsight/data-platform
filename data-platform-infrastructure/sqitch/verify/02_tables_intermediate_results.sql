@@ -2,39 +2,31 @@
 
 BEGIN;
 
-    DO $$
-    BEGIN
+-- data_quality
+SELECT 1 / CASE WHEN EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'meter'
+      AND column_name  = 'data_quality'
+) THEN 1 ELSE 0 END;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name   = 'meter'
-          AND column_name  = 'data_quality'
-      ) THEN
-        RAISE EXCEPTION 'Column data_quality is missing from public.meter';
-    END IF;
+-- data_statistics
+SELECT 1 / CASE WHEN EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'meter'
+      AND column_name  = 'data_statistics'
+) THEN 1 ELSE 0 END;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name   = 'meter'
-          AND column_name  = 'data_statistics'
-      ) THEN
-        RAISE EXCEPTION 'Column data_statistics is missing from public.meter';
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name   = 'meter'
-          AND column_name  = 'connectivity'
-      ) THEN
-        RAISE EXCEPTION 'Column connectivity is missing from public.meter';
-    END IF;
-
-    END $$;
+-- connectivity
+SELECT 1 / CASE WHEN EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'meter'
+      AND column_name  = 'connectivity'
+) THEN 1 ELSE 0 END;
 
 ROLLBACK;

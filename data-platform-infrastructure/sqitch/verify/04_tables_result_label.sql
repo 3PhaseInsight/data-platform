@@ -2,22 +2,22 @@
 
 BEGIN;
 
-DO $$
-BEGIN
-  -- Table
-  IF to_regclass('public.run_result') IS NULL THEN
-    RAISE EXCEPTION 'Expected table %.% does not exist', 'public', 'run_result';
-  END IF;
+-- Table existence: :meta_schema.run_result
+SELECT 1 / CASE
+    WHEN to_regclass(format('%I.run_result', :'meta_schema')) IS NOT NULL
+    THEN 1 ELSE 0
+END;
 
-  -- Enum
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_type t
-    JOIN pg_namespace n ON n.oid = t.typnamespace
-    WHERE n.nspname = 'public' AND t.typname = 'result_phase'
-  ) THEN
-    RAISE EXCEPTION 'Type public.result_phase is missing';
-  END IF;
-END $$;
+-- Enum existence: :meta_schema.result_phase
+SELECT 1 / CASE
+    WHEN EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname = :'meta_schema'
+          AND t.typname = 'result_phase'
+    )
+    THEN 1 ELSE 0
+END;
 
 ROLLBACK;

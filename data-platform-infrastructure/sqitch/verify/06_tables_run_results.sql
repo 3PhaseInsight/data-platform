@@ -2,162 +2,153 @@
 
 BEGIN;
 
-DO $$
-BEGIN
-  -- Columns exist
-  IF NOT EXISTS (
+-- Columns exist
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='run_result' AND column_name='topology_version'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing column public.run_result.topology_version';
-  END IF;
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'run_result'
+      AND column_name  = 'topology_version'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='run_result' AND column_name='node_id'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing column public.run_result.node_id';
-  END IF;
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'run_result'
+      AND column_name  = 'node_id'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='run_result' AND column_name='edge_id'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing column public.run_result.edge_id';
-  END IF;
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'run_result'
+      AND column_name  = 'edge_id'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='run_result' AND column_name='cable_id'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing column public.run_result.cable_id';
-  END IF;
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'run_result'
+      AND column_name  = 'cable_id'
+) THEN 1 ELSE 0 END;
 
-  -- meter_id is nullable
-  IF NOT EXISTS (
+-- meter_id is nullable
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public'
-      AND table_name='run_result'
-      AND column_name='meter_id'
-      AND is_nullable='YES'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: public.run_result.meter_id is still NOT NULL';
-  END IF;
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'run_result'
+      AND column_name  = 'meter_id'
+      AND is_nullable  = 'YES'
+) THEN 1 ELSE 0 END;
 
-    -- phase is nullable
-  IF NOT EXISTS (
+-- phase is nullable
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public'
-      AND table_name='run_result'
-      AND column_name='phase'
-      AND is_nullable='YES'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: public.run_result.meter_id is still NOT NULL';
-  END IF;
+    WHERE table_schema = :'meta_schema'
+      AND table_name   = 'run_result'
+      AND column_name  = 'phase'
+      AND is_nullable  = 'YES'
+) THEN 1 ELSE 0 END;
 
-  -- Check constraints
-  IF NOT EXISTS (
+-- Check constraints
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1
     FROM pg_constraint c
     JOIN pg_class t ON t.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = t.relnamespace
-    WHERE n.nspname='public'
-      AND t.relname='run_result'
-      AND c.contype='c'
-      AND c.conname='run_result_exactly_one_target_chk'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing constraint run_result_exactly_one_target_chk';
-  END IF;
+    WHERE n.nspname = :'meta_schema'
+      AND t.relname = 'run_result'
+      AND c.contype = 'c'
+      AND c.conname = 'run_result_exactly_one_target_chk'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1
     FROM pg_constraint c
     JOIN pg_class t ON t.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = t.relnamespace
-    WHERE n.nspname='public'
-      AND t.relname='run_result'
-      AND c.contype='c'
-      AND c.conname='run_result_version_required_for_graph_chk'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing constraint run_result_version_required_for_graph_chk';
-  END IF;
+    WHERE n.nspname = :'meta_schema'
+      AND t.relname = 'run_result'
+      AND c.contype = 'c'
+      AND c.conname = 'run_result_version_required_for_graph_chk'
+) THEN 1 ELSE 0 END;
 
-  -- FKs (ensure they exist; referenced table checks included)
-  IF NOT EXISTS (
+-- FKs
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1
     FROM pg_constraint c
-    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_class t  ON t.oid  = c.conrelid
     JOIN pg_namespace nt ON nt.oid = t.relnamespace
     JOIN pg_class rt ON rt.oid = c.confrelid
     JOIN pg_namespace nr ON nr.oid = rt.relnamespace
-    WHERE nt.nspname='public' AND t.relname='run_result'
-      AND c.contype='f' AND c.conname='run_result_node_fk'
-      AND nr.nspname='lv' AND rt.relname='node'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing FK run_result_node_fk to lv.node';
-  END IF;
+    WHERE nt.nspname = :'meta_schema'
+      AND t.relname  = 'run_result'
+      AND c.contype  = 'f'
+      AND c.conname  = 'run_result_node_fk'
+      AND nr.nspname = :'lv_schema'
+      AND rt.relname = 'node'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1
     FROM pg_constraint c
-    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_class t  ON t.oid  = c.conrelid
     JOIN pg_namespace nt ON nt.oid = t.relnamespace
     JOIN pg_class rt ON rt.oid = c.confrelid
     JOIN pg_namespace nr ON nr.oid = rt.relnamespace
-    WHERE nt.nspname='public' AND t.relname='run_result'
-      AND c.contype='f' AND c.conname='run_result_edge_fk'
-      AND nr.nspname='lv' AND rt.relname='edge'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing FK run_result_edge_fk to lv.edge';
-  END IF;
+    WHERE nt.nspname = :'meta_schema'
+      AND t.relname  = 'run_result'
+      AND c.contype  = 'f'
+      AND c.conname  = 'run_result_edge_fk'
+      AND nr.nspname = :'lv_schema'
+      AND rt.relname = 'edge'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
+SELECT 1 / CASE WHEN EXISTS (
     SELECT 1
     FROM pg_constraint c
-    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_class t  ON t.oid  = c.conrelid
     JOIN pg_namespace nt ON nt.oid = t.relnamespace
     JOIN pg_class rt ON rt.oid = c.confrelid
     JOIN pg_namespace nr ON nr.oid = rt.relnamespace
-    WHERE nt.nspname='public' AND t.relname='run_result'
-      AND c.contype='f' AND c.conname='run_result_cable_fk'
-      AND nr.nspname='lv' AND rt.relname='cable'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing FK run_result_cable_fk to lv.cable';
-  END IF;
+    WHERE nt.nspname = :'meta_schema'
+      AND t.relname  = 'run_result'
+      AND c.contype  = 'f'
+      AND c.conname  = 'run_result_cable_fk'
+      AND nr.nspname = :'lv_schema'
+      AND rt.relname = 'cable'
+) THEN 1 ELSE 0 END;
 
-  -- Indexes exist
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_class i
-    JOIN pg_namespace n ON n.oid=i.relnamespace
-    WHERE n.nspname='public' AND i.relname='run_result_node_idx'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing index public.run_result_node_idx';
-  END IF;
+-- Indexes exist
+SELECT 1 / CASE WHEN EXISTS (
+    SELECT 1
+    FROM pg_class i
+    JOIN pg_namespace n ON n.oid = i.relnamespace
+    WHERE n.nspname = :'meta_schema'
+      AND i.relname = 'run_result_node_idx'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_class i
-    JOIN pg_namespace n ON n.oid=i.relnamespace
-    WHERE n.nspname='public' AND i.relname='run_result_edge_idx'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing index public.run_result_edge_idx';
-  END IF;
+SELECT 1 / CASE WHEN EXISTS (
+    SELECT 1
+    FROM pg_class i
+    JOIN pg_namespace n ON n.oid = i.relnamespace
+    WHERE n.nspname = :'meta_schema'
+      AND i.relname = 'run_result_edge_idx'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_class i
-    JOIN pg_namespace n ON n.oid=i.relnamespace
-    WHERE n.nspname='public' AND i.relname='run_result_cable_idx'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing index public.run_result_cable_idx';
-  END IF;
+SELECT 1 / CASE WHEN EXISTS (
+    SELECT 1
+    FROM pg_class i
+    JOIN pg_namespace n ON n.oid = i.relnamespace
+    WHERE n.nspname = :'meta_schema'
+      AND i.relname = 'run_result_cable_idx'
+) THEN 1 ELSE 0 END;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_class i
-    JOIN pg_namespace n ON n.oid=i.relnamespace
-    WHERE n.nspname='public' AND i.relname='run_result_meter_idx'
-  ) THEN
-    RAISE EXCEPTION 'verify failed: missing index public.run_result_meter_idx';
-  END IF;
-
-END$$;
+SELECT 1 / CASE WHEN EXISTS (
+    SELECT 1
+    FROM pg_class i
+    JOIN pg_namespace n ON n.oid = i.relnamespace
+    WHERE n.nspname = :'meta_schema'
+      AND i.relname = 'run_result_meter_idx'
+) THEN 1 ELSE 0 END;
 
 COMMIT;
