@@ -3,7 +3,7 @@
 # Simple local script to create a Postgres role without depending on a specific container runtime.
 # Usage:
 #      ./create-db-user.sh <host/IP> <port> <admin_user_of_db> <admin_password> <role> <role_password> [<database_name>]
-#      (database_name is optional, defaults to POSTGRES_DB environment variable or if not set it defaults to "postgres")
+#      (database_name is optional, defaults to DB_NAME environment variable or if not set it defaults to "postgres")
 #      e.g. ./create-db-user.sh localhost 5432 postgres password threephi_db_user strongpass 3phi-db
 
 set -eo pipefail
@@ -27,7 +27,7 @@ ADMIN_USER="$3"
 ADMIN_PASS="$4"
 ROLE="$5"
 ROLE_PASS="$6"
-DB_NAME="${7:-${POSTGRES_DB:-postgres}}"
+DB_NAME="${7:-${DB_NAME:-postgres}}"
 
 # Trim whitespace from psql output before comparing.
 trim() {

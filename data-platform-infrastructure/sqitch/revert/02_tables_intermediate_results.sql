@@ -2,7 +2,7 @@
 
 BEGIN;
 
-ALTER TABLE public.meter
+ALTER TABLE :meta_schema.meter
     DROP COLUMN data_quality,
     DROP COLUMN data_statistics,
     DROP COLUMN connectivity;

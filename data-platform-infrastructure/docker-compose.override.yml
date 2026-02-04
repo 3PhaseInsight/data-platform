@@ -1,7 +1,7 @@
 services:
   timescaledb:
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1" ]
+      test: [ "CMD-SHELL", "pg_isready -U $$DB_USER -d $$DB_NAME -h 127.0.0.1" ]
       interval: 2s
       timeout: 5s
       retries: 60
@@ -42,8 +42,8 @@ services:
       - platform_network
     entrypoint: [ "bash", "-lc" ]
     command: >
-      "ls && ./create-db-user.sh ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} $${ROLE} $${ROLE_PW} ${POSTGRES_DB}
-      && ./sqitch-deploy.sh ${POSTGRES_HOST}:${POSTGRES_PORT} ${POSTGRES_USER} ${POSTGRES_PASSWORD} ${POSTGRES_DB}"
+      "ls && ./create-db-user.sh ${DB_HOST} ${DB_PORT} ${DB_USER} ${DB_PASSWORD} $${ROLE} $${ROLE_PW} ${DB_NAME}
+      && ./sqitch-deploy.sh ${DB_HOST}:${DB_PORT} ${DB_USER} ${DB_PASSWORD} ${DB_NAME}"
 
 volumes:
   local_timescale_data: {}
