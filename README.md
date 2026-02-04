@@ -69,7 +69,10 @@ extra-index-url = https://pypi.org/simple
 ```
 Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a Gitlab access token provided by an Admin (Token might need "Owner" permissions due to Gitlab quirks). The pip.conf file will be picked up during the build process to install the custom 3phi-framework python library.
 
-#### 4. Deploy the platform locally and initialize the Database
+#### 4. Prepare data directory
+If not specifying a data directoy, the default behaviour requires a directory `data` to be created at the root of the repository. 
+
+#### 5. Deploy the platform locally and initialize the Database
 If you are working in MacOS you should already have `make` installed, but if you work on a Windows machine you need to install it:
 
 ```powershell
@@ -82,12 +85,12 @@ make up
 ```
 This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created named threephi_db_user. This user will be used by the other services when they interact with the database. At last, the database will be initialized with the necessary schemas & tables.
 
-#### 5. Create MinIO buckets
+#### 6. Create MinIO buckets
 Open the MinIO Console at http://localhost:19001 (or in Docker Desktop, click the minio container’s Console port). Sign in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env` (defaults: `minioadmin` / `minioadmin`). Create these buckets:
 - `3phi` — ingested timeseries parquet files
 - `airflow-logs` — Airflow task logs
 
-#### 6. Access the Airflow UI
+#### 7. Access the Airflow UI
 Open http://localhost:8080 (or click `8080:8080` in Docker Desktop for the Airflow webserver). Retrieve the admin password from the webserver logs at Docker Desktop → Airflow-webserver → Logs. Look for:
 ```
 Simple auth manager | Password for user 'admin': <16-character-password>
