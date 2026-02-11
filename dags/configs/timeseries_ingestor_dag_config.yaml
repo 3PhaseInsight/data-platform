@@ -1,0 +1,8 @@
+result_name: timeseries_ingestor
+dask:
+  host: dask-scheduler
+  port: "8786"
+override: False
+csv_source_path: /opt/airflow/data
+csv_file_pattern: phase_measurements_*.csv
+parquet_destination_path: phase_measurements/raw

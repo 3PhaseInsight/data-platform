@@ -9,10 +9,10 @@ from datetime import datetime
 import threephi_framework.db.db as threephi_db
 from threephi_framework import TopologyController
 from threephi_framework.resources.topology.assets.meter import MeterResource
-from threephi_framework import DataApp
+from threephi_framework.data_apps.base import BaseDataApp
 
 
-class TopologyTester(DataApp):
+class TopologyTester(BaseDataApp):
     def __init__(self, config):
         super().__init__(config)
         self.substation_id = config["substation_id"]
@@ -50,32 +50,31 @@ with open(
     "r",
 ) as file:
     pipeline_config = yaml.safe_load(file)
-    topologyTester = TopologyTester(pipeline_config)
+    with TopologyTester(pipeline_config) as app:
+        # Default DAG args
+        default_args = {
+            "owner": "inilab",
+            "retries": 0,
+            "depends_on_past": False,
+            "email_on_failure": False,
+            "email_on_retry": False,
+        }
 
-    # Default DAG args
-    default_args = {
-        "owner": "inilab",
-        "retries": 0,
-        "depends_on_past": False,
-        "email_on_failure": False,
-        "email_on_retry": False,
-    }
+        # Define DAG
+        with DAG(
+            dag_id="test_topology",
+            description="Test Topology Data",
+            default_args=default_args,
+            start_date=datetime.now(),
+            catchup=False,
+            max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
+        ) as dag:
+            test_topology_task = PythonOperator(
+                task_id="test_topology",
+                python_callable=app.run,
+                doc_md="""
+                ## Test Topology
+                """,
+            )
 
-    # Define DAG
-    with DAG(
-        dag_id="test_topology",
-        description="Test Topology Data",
-        default_args=default_args,
-        start_date=datetime.now(),
-        catchup=False,
-        max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
-    ) as dag:
-        test_topology_task = PythonOperator(
-            task_id="test_topology",
-            python_callable=topologyTester.run,
-            doc_md="""
-            ## Test Topology
-            """,
-        )
-
-        test_topology_task
+            test_topology_task

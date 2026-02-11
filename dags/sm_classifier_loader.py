@@ -7,7 +7,7 @@ import yaml
 import dask.dataframe as dd
 from time import time, sleep
 from typing import Union, List
-from threephi_framework import DataApp
+from threephi_framework import BaseDataApp
 from threephi_framework import DataExtractor
 import threephi_framework.db.db as threephi_db
 from dask.distributed import get_client, Client
@@ -38,7 +38,7 @@ from threephi_framework.data_extractor.schemas.phase_measurements.v1 import (
     PhaseMeasurementsParquetSchema,
 )
 
-class Save_SMClassifier(DataApp):
+class Save_SMClassifier(BaseDataApp):
 
     # TODO: Is this important??
     # Some variables for plotting
@@ -53,7 +53,7 @@ class Save_SMClassifier(DataApp):
         # Unpack the config
         # self.batch = config.get('Data_batch')
         # self.use_dask = config.get('Use_dask')
-        self.data_extractor = DataExtractor()
+        # self.data_extractor = DataExtractor()
         self.db_connector = DBConnector()
         self.s3_connector = S3Connector()
         self.topology_controller = TopologyController(threephi_db.new_session)
@@ -63,7 +63,6 @@ class Save_SMClassifier(DataApp):
         self.topology_processing_level = config.get('topology_processing_level', None)
         self.overwrite_topology_info = config.get('overwrite_topology_info', False)
         self.overwrite_timeseries_info = config.get('overwrite_timeseries_info', False)
-        self.results_dir = f'{self.data_extractor.s3_base}/sm_classifier'
         self.phase_measurements_csv_schema = PhaseMeasurementsCsvSchema()
         self.phase_measurements_parquet_schema = PhaseMeasurementsParquetSchema()
 
@@ -208,32 +207,32 @@ class Save_SMClassifier(DataApp):
 config_file = "sm_classifier_config.yaml"
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:
     pipeline_config = yaml.safe_load(file)
-    save_sm_classifier = Save_SMClassifier(config=pipeline_config, session_factory=threephi_db.new_session)
 
-    # Default DAG args
-    default_args = {
-        "owner": "inilab",
-        "retries": 0,
-        "depends_on_past": False,
-        "email_on_failure": False,
-        "email_on_retry": False,
-    }
+    with Save_SMClassifier(config=pipeline_config, session_factory=threephi_db.new_session) as save_sm_classifier:
+        # Default DAG args
+        default_args = {
+            "owner": "inilab",
+            "retries": 0,
+            "depends_on_past": False,
+            "email_on_failure": False,
+            "email_on_retry": False,
+        }
 
-    # Define DAG
-    with DAG(
-        dag_id="save_sm_classifier",
-        description="SAVE Smart Meters Classification based on topology and data quality",
-        default_args=default_args,
-        start_date=datetime.now(),
-        catchup=False,
-        max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
-    ) as dag:
-        save_sm_classifier_task = PythonOperator(
-            task_id="Save_SM_Classification",
-            python_callable=save_sm_classifier.save_sm_classification,
-            doc_md="""
-            ## SAVE Smart Meters Classification DAG
-            """,
-        )
+        # Define DAG
+        with DAG(
+            dag_id="save_sm_classifier",
+            description="SAVE Smart Meters Classification based on topology and data quality",
+            default_args=default_args,
+            start_date=datetime.now(),
+            catchup=False,
+            max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
+        ) as dag:
+            save_sm_classifier_task = PythonOperator(
+                task_id="Save_SM_Classification",
+                python_callable=save_sm_classifier.save_sm_classification,
+                doc_md="""
+                ## SAVE Smart Meters Classification DAG
+                """,
+            )
 
-        save_sm_classifier_task
+            save_sm_classifier_task

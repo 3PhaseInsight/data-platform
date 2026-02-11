@@ -1,6 +1,8 @@
 Name: sm_classifier_config # Name of the config file
 Comment: This is a config file for exemplifying the run of the SM classifier # A comment to describe the run
-
+dask:
+  host: dask-scheduler
+  port: "8786"
 Cluster_settings:
   n_workers: 4 # Should not exceed the number of cores on your machine
   # memory_limit: "4GB" # Memory limit is PER WORKER

@@ -1,27 +1,19 @@
 from datetime import datetime
+import os
+from pathlib import Path
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
-from dask.distributed import Client, get_client
-import threephi_framework.db.db as threephi_db
-from threephi_framework.controllers.topology import TopologyController
+import yaml
 
-def ingest_topology():
-    # Set up dask client
-    try:
-        get_client()
-    except ValueError:
-        Client("tcp://dask-scheduler:8786")
+from threephi_framework import TopologyIngestor
 
-    topology_controller = TopologyController(threephi_db.new_session)
-    # read and clean topology
-    topology_ddf = topology_controller.read_topology("/opt/airflow/data/lv_topology.csv")
-    # topology_ddf = ingestor.clean_topology_dask(topology_ddf)
-    # read and clean sm_cab
-    sm_cab_ddf = topology_controller.read_sm_cab("/opt/airflow/data/meter_cabinet_connection.csv")
-    # sm_cab_ddf = ingestor.clean_meter_and_cabinet_connection_dask(sm_cab_ddf)
-    # store in DB
-    topology_controller.ingest(topology_ddf, sm_cab_ddf)
+def topology_ingestion():
+    config_name = Path(__file__).stem
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", f"{config_name}_config.yaml")) as file:
+        config = yaml.safe_load(file)
+    with TopologyIngestor(config) as app:
+        app.run()
 
 # Default DAG args
 default_args = {
@@ -34,7 +26,7 @@ default_args = {
 
 # Define DAG
 with DAG(
-        dag_id='ingest_topology',
+        dag_id='TopologyIngestorDAG',
         description='Ingest Timeseries Data from CSV to partitioned parquet file storage',
         default_args=default_args,
         start_date=datetime.now(),
@@ -44,7 +36,7 @@ with DAG(
 
     ingest_topology_task = PythonOperator(
         task_id='ingest_topology',
-        python_callable=ingest_topology,
+        python_callable=topology_ingestion,
         doc_md="""
         ## Ingest Topology
         

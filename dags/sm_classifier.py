@@ -4,7 +4,7 @@ import yaml
 import logging
 from time import time, sleep
 from typing import Union, List
-from threephi_framework import DataApp
+from threephi_framework import BaseDataApp
 from threephi_framework import DataExtractor
 from dask.distributed import get_client, Client
 from dask import delayed, compute
@@ -14,7 +14,7 @@ from datetime import datetime
 
 from dtu.sm_classifier import _meter_evaluation
 
-class SMClassifier(DataApp):
+class SMClassifier(BaseDataApp):
 
     # Some variables for plotting
     ALLOWED_VARIABLES = {"V", "P14", "P23", "Q12", "Q34"}
@@ -28,7 +28,7 @@ class SMClassifier(DataApp):
         # Unpack the config
         # self.batch = config.get('Data_batch')
         # self.use_dask = config.get('Use_dask')
-        self.data_extractor = DataExtractor()
+        # self.data_extractor = DataExtractor()
         # self.topology_controller = TopologyController(threephi_db.new_session)
         self.n_workers = config["Cluster_settings"]["n_workers"]
         self.sm_ids = config.get('sm_ids', "All")

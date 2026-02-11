@@ -12,13 +12,13 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from dask.distributed import Client, get_client
 
-from threephi_framework import DataApp
+from threephi_framework.data_apps.base import BaseDataApp
 from threephi_framework import DataExtractor
 import threephi_framework.db.db as threephi_db
 from threephi_framework import TopologyController
 from dtu.stat_labeler import label_meters
 
-class StatLabeler(DataApp):
+class StatLabeler(BaseDataApp):
 
     # Initialization method which is automatically called when creating an instance of this class
     def __init__(self, config):
@@ -28,7 +28,6 @@ class StatLabeler(DataApp):
         super().__init__(config)
 
         # Set up the local config settings
-        self.data_extractor = DataExtractor()
         self.data_dir_path = config.get('data_dir_path', None)
         self.use_ANOVA = config.get('use_ANOVA', True)
         self.label_summerhouse = config.get('label_summerhouse', True)
@@ -169,32 +168,31 @@ config_file = "stat_labeler_config.yaml"
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:
     pipeline_config = yaml.safe_load(file)
-    statlabeler = StatLabeler(config=pipeline_config)
+    with StatLabeler(config=pipeline_config) as statlabeler:
+        # Default DAG args
+        default_args = {
+            "owner": "inilab",
+            "retries": 0,
+            "depends_on_past": False,
+            "email_on_failure": False,
+            "email_on_retry": False,
+        }
 
-    # Default DAG args
-    default_args = {
-        "owner": "inilab",
-        "retries": 0,
-        "depends_on_past": False,
-        "email_on_failure": False,
-        "email_on_retry": False,
-    }
+        # Define DAG
+        with DAG(
+            dag_id="statlabeler",
+            description="Locate and label SM phases with heat pumps using statistical methods",
+            default_args=default_args,
+            start_date=datetime.now(),
+            catchup=False,
+            max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
+        ) as dag:
+            stat_labeler_task = PythonOperator(
+                task_id="Label_phases_of_SMs",
+                python_callable=statlabeler.run,
+                doc_md="""
+                ## Label phases of SMs
+                """,
+            )
 
-    # Define DAG
-    with DAG(
-        dag_id="statlabeler",
-        description="Locate and label SM phases with heat pumps using statistical methods",
-        default_args=default_args,
-        start_date=datetime.now(),
-        catchup=False,
-        max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
-    ) as dag:
-        stat_labeler_task = PythonOperator(
-            task_id="Label_phases_of_SMs",
-            python_callable=statlabeler.run,
-            doc_md="""
-            ## Label phases of SMs
-            """,
-        )
-
-        stat_labeler_task
+            stat_labeler_task
