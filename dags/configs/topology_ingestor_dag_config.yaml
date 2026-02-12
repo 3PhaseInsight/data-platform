@@ -1,0 +1,7 @@
+result_name: timeseries_ingestor
+dask:
+  host: dask-scheduler
+  port: "8786"
+override: False
+topology_source_path: /opt/airflow/data/lv_topology.csv
+sm_cab_source_path: /opt/airflow/data/meter_cabinet_connection.csv
