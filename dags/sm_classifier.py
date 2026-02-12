@@ -28,7 +28,6 @@ class SMClassifier(BaseDataApp):
         # Unpack the config
         # self.batch = config.get('Data_batch')
         # self.use_dask = config.get('Use_dask')
-        # self.data_extractor = DataExtractor()
         # self.topology_controller = TopologyController(threephi_db.new_session)
         self.n_workers = config["Cluster_settings"]["n_workers"]
         self.sm_ids = config.get('sm_ids', "All")

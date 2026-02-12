@@ -53,7 +53,6 @@ class Save_SMClassifier(BaseDataApp):
         # Unpack the config
         # self.batch = config.get('Data_batch')
         # self.use_dask = config.get('Use_dask')
-        # self.data_extractor = DataExtractor()
         self.db_connector = DBConnector()
         self.s3_connector = S3Connector()
         self.topology_controller = TopologyController(threephi_db.new_session)
