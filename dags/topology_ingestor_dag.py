@@ -10,7 +10,6 @@ import yaml
 from threephi_framework import TopologyIngestor
 
 def topology_ingestion():
-    logging.info("Updated DAG")
     config_name = Path(__file__).stem
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", f"{config_name}_config.yaml")) as file:
         config = yaml.safe_load(file)
