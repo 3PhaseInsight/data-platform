@@ -1,16 +1,16 @@
 services:
 
-  timescaledb:
-    image: timescale/timescaledb:latest-pg14
-    container_name: timescaledb
+  postgres:
+    image: postgres:18-alpine
+    container_name: postgres
     environment:
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
-      - timescale_data:/var/lib/postgresql/data
+      - psql_data:/var/lib/postgresql/data
     networks:
       - platform_network
     restart: unless-stopped
@@ -41,11 +41,11 @@ services:
     cpus: 0.5
 
 volumes:
-  timescale_data:
+  psql_data:
     driver: local
     driver_opts:
       type: none
-      device: /mnt/storage/timescaledb
+      device: /mnt/storage/psql_data
       o: bind
   minio_data:
     driver: local

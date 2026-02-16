@@ -16,7 +16,7 @@ services:
     depends_on:
       - airflow-webserver
       - redis
-      - timescaledb
+      - postgres
     environment:
       # Executor Config (Celery)
       - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
@@ -56,7 +56,7 @@ services:
     depends_on:
       - airflow-webserver
       - redis
-      - timescaledb
+      - postgres
     environment:
       # Executor Config (Celery)
       - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
