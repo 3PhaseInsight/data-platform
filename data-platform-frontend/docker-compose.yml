@@ -2,7 +2,7 @@ services:
   airflow-migrate:
     image: ${CI_REGISTRY_IMAGE}/airflow:${IMAGE_TAG}
     depends_on:
-      timescaledb:
+      postgres:
         condition: service_healthy
     command: airflow db migrate
 

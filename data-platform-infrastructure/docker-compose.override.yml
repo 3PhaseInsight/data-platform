@@ -1,5 +1,5 @@
 services:
-  timescaledb:
+  postgres:
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$DB_USER -d $$DB_NAME -h 127.0.0.1" ]
       interval: 2s
@@ -7,7 +7,7 @@ services:
       retries: 60
       start_period: 10s
     volumes:
-      - local_timescale_data:/var/lib/postgresql/data
+      - local_psql_data:/var/lib/postgresql/data
 
   minio:
     volumes:
@@ -34,7 +34,7 @@ services:
       ROLE: threephi_db_user
       ROLE_PW: userpass
     depends_on:
-      timescaledb:
+      postgres:
         condition: service_healthy
     volumes:
       - local_sqitch:/sqitch
@@ -46,7 +46,7 @@ services:
       && ./sqitch-deploy.sh ${DB_HOST}:${DB_PORT} ${DB_USER} ${DB_PASSWORD} ${DB_NAME}"
 
 volumes:
-  local_timescale_data: {}
+  local_psql_data: {}
   local_minio_data: {}
   local_sqitch:
     driver: local

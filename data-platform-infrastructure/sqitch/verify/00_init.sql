@@ -5,9 +5,6 @@ BEGIN;
 SELECT 1 FROM pg_namespace WHERE nspname = :'meta_schema';
 SELECT 1 FROM pg_namespace WHERE nspname = 'airflow';
 
--- Timescale extension installed
-SELECT 1 FROM pg_extension WHERE extname = 'timescaledb';
-
 -- Function exists
 SELECT 1
 FROM pg_proc p
