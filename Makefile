@@ -1,8 +1,13 @@
-include .env
-ifndef FRAMEWORK_PATH
-$(error Please set your local FRAMEWORK_PATH in .env)
+ifeq ($(wildcard dev.env),)
+$(error Please create dev.env, see dev.env.example for reference)
 endif
-#export FRAMEWORK_PATH
+
+include dev.env
+
+ifndef FRAMEWORK_PATH
+$(error Please set your local FRAMEWORK_PATH in dev.env)
+endif
+
 PROJECT=data-platform
 ENV_FILE=.env
 COMPOSE_FILES= \

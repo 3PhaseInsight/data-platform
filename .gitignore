@@ -9,3 +9,5 @@ logs
 volumes
 data-platform-infrastructure/volumes
 pip.conf
+.DS_Store
+dev.env
