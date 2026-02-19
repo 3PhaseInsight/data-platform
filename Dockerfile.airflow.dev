@@ -1,0 +1,12 @@
+FROM airflow:latest
+
+ARG FRAMEWORK_PATH="../3phi-framework"
+
+USER root
+
+# Framework development
+COPY ./tmp/ /opt/3phi-framework/
+RUN pip install /opt/3phi-framework/3phi_framework-*.whl \
+    && rm -r /opt/3phi-framework
+
+USER airflow
