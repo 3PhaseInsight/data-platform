@@ -60,14 +60,14 @@ If you don't have `Chocolatey` installed:
 iwr https://chocolatey.org/install.ps1 -UseBasicParsing | iex
 ```
 
-#### 3. Creating a pip.conf file
-Create a file in the root of the repository (the folder is called `data-platform`). The new file should be named `pip.conf`. Copy the following into the file:
+#### 3. Creating a dev.env file
+Copy the `dev.env.example` file in the data-platform repo.
+
+```bash
+cp dev.env.example dev.env
 ```
-[global]
-index-url = https://<GL_USER>:<GL_TOKEN>@gitlab.3pi-dev.io/api/v4/projects/4/packages/pypi/simple
-extra-index-url = https://pypi.org/simple
-```
-Replace `<GL_USER>` with your Gitlab username and replace `<GL_TOKEN>` with a Gitlab access token provided by an Admin (Token might need "Owner" permissions due to Gitlab quirks). The pip.conf file will be picked up during the build process to install the custom 3phi-framework python library.
+
+Edit and set your path to the 3phi-framework repo in this file.
 
 #### 4. Prepare data directory
 If not specifying a data directoy, the default behaviour requires a directory `data` to be created at the root of the repository. 
