@@ -1,14 +1,10 @@
-secrets:
-  pip_conf:
-    file: ./pip.conf
-
 services:
   redis:
     ports:
       - "6379:6379"
 
   airflow-scheduler:
-    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
+    image: airflow:dev
     volumes:
       - dags_volume:/opt/airflow/dags
       - local_data:/opt/airflow/data
@@ -17,7 +13,7 @@ services:
       - AIRFLOW__API__BASE_URL=http://localhost:8080
 
   airflow-worker:
-    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
+    image: airflow:dev
     volumes:
       - dags_volume:/opt/airflow/dags
       - local_data:/opt/airflow/data
@@ -26,12 +22,7 @@ services:
       - AIRFLOW__API__BASE_URL=http://localhost:8080
 
   dask-scheduler:
-    image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.dask
-      secrets:
-        - pip_conf
+    image: dask:dev
     ports:
       - "8786:8786"
       - "8787:8787"
@@ -39,7 +30,7 @@ services:
       - local_data:/opt/airflow/data:ro
 
   dask-worker:
-    image: ${CI_REGISTRY_IMAGE:-local}/dask:${IMAGE_TAG:-latest}
+    image: dask:dev
     volumes:
       - local_data:/opt/airflow/data
 

@@ -1,6 +1,6 @@
 services:
   airflow-migrate:
-    image: ${CI_REGISTRY_IMAGE}/airflow:${IMAGE_TAG}
+    image: airflow:dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -13,12 +13,7 @@ services:
     command: airflow db migrate
 
   airflow-webserver:
-    image: ${CI_REGISTRY_IMAGE:-local}/airflow:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.airflow
-      secrets:
-        - pip_conf
+    image: airflow:dev
     depends_on:
       airflow-migrate:
         condition: service_completed_successfully

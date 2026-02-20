@@ -16,17 +16,17 @@ RUN apt-get update && \
 COPY requirements.txt /requirements.txt
 COPY requirements-extra.txt /requirements-extra.txt
 
-# Copy DAGs & source code
-COPY dags/ /opt/airflow/dags/
-COPY plugins/ /opt/airflow/plugins/
-
-# Copy airflow config file
-COPY airflow.cfg /opt/airflow/airflow.cfg
-
 USER airflow
 ENV PATH="/home/airflow/.local/bin:${PATH}"
-
 RUN --mount=type=secret,id=pip_conf,target=/home/airflow/.pip/pip.conf,uid=50000,gid=0,mode=0400 \
     python -m pip install -U pip && \
     pip install --no-cache-dir -r /requirements.txt --constraint "${CONSTRAINT_URL}" && \
     pip install --no-cache-dir -r /requirements-extra.txt
+
+# Copy airflow config file
+COPY airflow.cfg /opt/airflow/airflow.cfg
+
+# Copy DAGs & source code
+COPY plugins/ /opt/airflow/plugins/
+COPY dags/ /opt/airflow/dags/
+
