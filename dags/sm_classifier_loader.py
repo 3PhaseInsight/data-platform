@@ -54,7 +54,7 @@ class Save_SMClassifier(BaseDataApp):
         # self.batch = config.get('Data_batch')
         # self.use_dask = config.get('Use_dask')
         self.db_connector = DBConnector()
-        self.s3_connector = S3Connector()
+        self.s3_connector = S3Connector(data_dir_path=config.get('data_dir_path', "phase_measurements/raw"))
         self.topology_controller = TopologyController(threephi_db.new_session)
         self.meta_controller = MetaController(threephi_db.new_session)
         self.n_workers = config["Cluster_settings"]["n_workers"]
@@ -185,19 +185,19 @@ class Save_SMClassifier(BaseDataApp):
             logging.info(f"SM {self.sm_ids[0]} first index:\n{sm_data.index.min()}")
             logging.info(f"SM {self.sm_ids[0]} last index:\n{sm_data.index.max()}")
 
-        def load_sm_save():
-            self.data_extractor = DataExtractor(phase_measurements_dir = "phase_measurements/raw")
+        # def load_sm_save():
+        #     self.data_extractor = DataExtractor(phase_measurements_dir = "phase_measurements/raw")
 
-            sm_data = self.data_extractor.v1_get_single_meter_data(id = self.sm_ids[0])
-            sm_data = sm_data.compute()
-            logging.info(f"SM {self.sm_ids[0]} data columns:\n{sm_data.columns}")
+        #     sm_data = self.data_extractor.v1_get_single_meter_data(id = self.sm_ids[0])
+        #     sm_data = sm_data.compute()
+        #     logging.info(f"SM {self.sm_ids[0]} data columns:\n{sm_data.columns}")
 
-            s3_connector = S3Connector()
-            s3_base = self.data_extractor.s3_base
-            s3_connector.write_parquet(
-                path = f"{s3_base}/sm_classifier/sm_17.parquet",
-                df = sm_data,
-            )
+        #     s3_connector = S3Connector()
+        #     s3_base = self.data_extractor.s3_base
+        #     s3_connector.write_parquet(
+        #         path = f"{s3_base}/sm_classifier/sm_17.parquet",
+        #         df = sm_data,
+        #     )
 
         
         load_sm()
