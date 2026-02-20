@@ -69,10 +69,15 @@ cp dev.env.example dev.env
 
 Edit and set your path to the 3phi-framework repo in this file.
 
-#### 4. Prepare data directory
+#### 4. Remove 3phi-framework from requirements.txt
+To prevent conflicts from sourcing previously built framework versions remotely when building the framework locally, at the top of the `requirements.txt` comment or delete the line starting with `3phi-framework`. 
+
+Note: *Do not commit this change*.
+
+#### 5. Prepare data directory
 If not specifying a data directoy, the default behaviour requires a directory `data` to be created at the root of the repository. 
 
-#### 5. Deploy the platform locally and initialize the Database
+#### 6. Deploy the platform locally and initialize the Database
 If you are working in MacOS you should already have `make` installed, but if you work on a Windows machine you need to install it:
 
 ```powershell
@@ -85,12 +90,12 @@ make up
 ```
 This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created named threephi_db_user. This user will be used by the other services when they interact with the database. At last, the database will be initialized with the necessary schemas & tables.
 
-#### 6. Create MinIO buckets
+#### 7. Create MinIO buckets
 Open the MinIO Console at http://localhost:19001 (or in Docker Desktop, click the minio container’s Console port). Sign in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env` (defaults: `minioadmin` / `minioadmin`). Create these buckets:
 - `3phi` — ingested timeseries parquet files
 - `airflow-logs` — Airflow task logs
 
-#### 7. Access the Airflow UI
+#### 8. Access the Airflow UI
 Open http://localhost:8080 (or click `8080:8080` in Docker Desktop for the Airflow webserver). Retrieve the admin password from the webserver logs at Docker Desktop → Airflow-webserver → Logs. Look for:
 ```
 Simple auth manager | Password for user 'admin': <16-character-password>
