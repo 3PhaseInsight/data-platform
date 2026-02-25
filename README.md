@@ -9,7 +9,7 @@ divides the individual components of the platform into three different parts:
 - "the rest": contains the backend part of the platform, which consists of the Apache Airflow Scheduler & Worker as well as the Dask Cluster
 
 ### Apache Airflow
-Airflow is used as a task orchestration framework in this platform. It includes a Python Environment which allows running Python Code.
+Airflow is used as a task orchestration framework in this platform. It includes a Python runtime environment for running Python code.
 The concept of DAGs allows defining workflows, which may also be called "Pipelines" in the 3Phi context. Airflow uses Redis as a 
 Message Queue Broker for scheduling worker tasks.
 
@@ -31,11 +31,15 @@ The Dask Library takes care of how to split workloads up over multiple workers a
 
 ### MinIO
 The platform (by default) uses MinIO as its object storage solution. MinIO is S3-compatible and optimized for large-scale data pipelines that require
-a high performance storage solution.
+a high performance storage solution. Using the 3phi-frameworks [BaseConnector](https://github.com/3PhaseInsight/3phi-framework/blob/main/src/threephi_framework/object_storage/base_connector.py), the platform can be adapted to different Object Storage Solutions.
 
 ### Data Directory
 Place your meter_data files and hourly_measurement files in the ./data directory, 
 so the containers can read data from there for the initial ingestion.
+
+## Architecture Diagram
+
+![Architecture Diagram](docs/3phi_platform_architecture.png)
 
 ## Local Development
 
@@ -60,7 +64,9 @@ If you don't have `Chocolatey` installed:
 iwr https://chocolatey.org/install.ps1 -UseBasicParsing | iex
 ```
 
-#### 3. Creating a dev.env file
+#### 3. (optional) Set up easier/faster local dev environment
+
+##### Creating a dev.env file
 Copy the `dev.env.example` file in the data-platform repo.
 
 ```bash
@@ -69,15 +75,15 @@ cp dev.env.example dev.env
 
 Edit and set your path to the 3phi-framework repo in this file.
 
-#### 4. Remove 3phi-framework from requirements.txt
+##### Remove 3phi-framework from requirements.txt
 To prevent conflicts from sourcing previously built framework versions remotely when building the framework locally, at the top of the `requirements.txt` comment or delete the line starting with `3phi-framework`. 
 
 Note: *Do not commit this change*.
 
-#### 5. Prepare data directory
+#### 4. Prepare data directory
 If not specifying a data directoy, the default behaviour requires a directory `data` to be created at the root of the repository. 
 
-#### 6. Deploy the platform locally and initialize the Database
+#### 5. Deploy the platform locally and initialize the Database
 If you are working in MacOS you should already have `make` installed, but if you work on a Windows machine you need to install it:
 
 ```powershell
@@ -90,12 +96,12 @@ make up
 ```
 This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created named threephi_db_user. This user will be used by the other services when they interact with the database. At last, the database will be initialized with the necessary schemas & tables.
 
-#### 7. Create MinIO buckets
+#### 6. Create MinIO buckets
 Open the MinIO Console at http://localhost:19001 (or in Docker Desktop, click the minio container’s Console port). Sign in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env` (defaults: `minioadmin` / `minioadmin`). Create these buckets:
 - `3phi` — ingested timeseries parquet files
 - `airflow-logs` — Airflow task logs
 
-#### 8. Access the Airflow UI
+#### 7. Access the Airflow UI
 Open http://localhost:8080 (or click `8080:8080` in Docker Desktop for the Airflow webserver). Retrieve the admin password from the webserver logs at Docker Desktop → Airflow-webserver → Logs. Look for:
 ```
 Simple auth manager | Password for user 'admin': <16-character-password>
