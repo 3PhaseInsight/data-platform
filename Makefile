@@ -1,12 +1,7 @@
-ifeq ($(wildcard dev.env),)
-$(error Please create dev.env, see dev.env.example for reference)
-endif
-
-include dev.env
-
-ifndef FRAMEWORK_PATH
-$(error Please set your local FRAMEWORK_PATH in dev.env)
-endif
+# dev.env is optional — only needed when developing 3phi-framework locally.
+# When present and FRAMEWORK_PATH is set, a local wheel is built and installed
+# into the dev images. Otherwise, requirements.txt supplies the framework version.
+-include dev.env
 
 PROJECT=data-platform
 ENV_FILE=.env
@@ -19,9 +14,13 @@ COMPOSE_FILES= \
   -f data-platform-frontend/docker-compose.override.yml
 
 FRAMEWORK_WHEEL:=./tmp/framework_wheel.stamp
-FRAMEWORK_SRC:=$(shell find $(FRAMEWORK_PATH)/src -type f)
 
-up: $(FRAMEWORK_WHEEL)
+ifdef FRAMEWORK_PATH
+FRAMEWORK_SRC:=$(shell find $(FRAMEWORK_PATH)/src -type f)
+_WHEEL_DEP:=$(FRAMEWORK_WHEEL)
+endif
+
+up: $(_WHEEL_DEP)
 	docker build -t dask:latest -f Dockerfile.dask .
 	docker build -t airflow:latest -f Dockerfile.airflow .
 	docker build -t dask:dev -f Dockerfile.dask.dev .
