@@ -1,3 +1,6 @@
+"dask":
+  host: dask-scheduler
+  port: "8786"
 substation_id: 147237
 delivery_point_id: 999994
 cabinet_id: 996044
