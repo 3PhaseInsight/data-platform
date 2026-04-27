@@ -27,7 +27,7 @@ with DAG(
     dag_id="test_topology",
     description="Test Topology Data",
     default_args=default_args,
-    start_date=datetime.now(),
+    start_date=datetime.datetime.now(),
     catchup=False,
     max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
 ) as dag:
@@ -38,5 +38,3 @@ with DAG(
         ## Test Topology
         """,
     )
-
-    test_topology_task

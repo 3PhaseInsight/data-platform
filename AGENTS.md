@@ -18,7 +18,7 @@ The **3-Phase-Insight (3Phi) Data Platform** orchestrates smart meter data proce
 ```
 dags/                         # Airflow DAG definitions (one .py per pipeline)
 dags/configs/                 # YAML configs loaded by DAGs at runtime
-dags/utils.py                 # Shared DAG helpers (e.g. load_dag_config)
+plugins/utils.py              # Shared DAG helpers (e.g. load_dag_config)
 plugins/dtu/                  # Domain-specific Python modules imported by DAGs
 data-platform-infrastructure/ # PostgreSQL schema (Sqitch migrations)
 data-platform-frontend/       # Airflow webserver compose service

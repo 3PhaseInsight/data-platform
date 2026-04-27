@@ -11,8 +11,6 @@ from airflow import DAG
 import logging
 from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime
-from threephi_framework.controllers.topology import TopologyController
-from threephi_framework.controllers.meta import MetaController
 
 
 # For meta controller
@@ -21,7 +19,6 @@ from sqlalchemy.orm import Session
 
 from threephi_framework.resources.meta.meter import MetaMeterResource
 from threephi_framework.resources.topology.assets.meter import MeterResource
-from threephi_framework.db_connector import DBConnector
 from threephi_framework import S3Connector
 
 from threephi_framework.data_extractor.schemas.phase_measurements.v1 import (
@@ -41,14 +38,9 @@ class Save_SMClassifier(BaseDataApp):
         super().__init__(config)
 
         # Unpack the config
-        # self.batch = config.get('Data_batch')
-        # self.use_dask = config.get('Use_dask')
-        self.db_connector = DBConnector()
         self.s3_connector = S3Connector(
             data_dir_path=config.get("data_dir_path", "phase_measurements/raw")
         )
-        self.topology_controller = TopologyController(threephi_db.new_session)
-        self.meta_controller = MetaController(threephi_db.new_session)
         self.n_workers = config["Cluster_settings"]["n_workers"]
         self.sm_ids = config.get("sm_ids", "All")
         self.topology_processing_level = config.get("topology_processing_level", None)

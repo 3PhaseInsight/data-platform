@@ -1,6 +1,4 @@
-# custom package
-3phi-framework==0.2.3.dev341+pr.29.sha70d1e9ac
-# regular packages
+# 3phi-framework==0.2.7
 s3fs
 pyarrow
 tqdm
@@ -22,6 +20,7 @@ msgpack==1.1.1
 xxhash==3.5.0
 graphviz
 Flask-AppBuilder
+adlfs
 
 # For StatLabeler
 matplotlib
