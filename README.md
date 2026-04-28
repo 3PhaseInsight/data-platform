@@ -34,12 +34,58 @@ The platform (by default) uses MinIO as its object storage solution. MinIO is S3
 a high performance storage solution. Using the 3phi-frameworks [BaseConnector](https://github.com/3PhaseInsight/3phi-framework/blob/main/src/threephi_framework/object_storage/base_connector.py), the platform can be adapted to different Object Storage Solutions.
 
 ### Data Directory
-Place your meter_data files and hourly_measurement files in the ./data directory, 
-so the containers can read data from there for the initial ingestion.
+Place your `phase_measurements_*.csv` files in the `./data` directory so the containers can read them during ingestion. The path is mounted into all Airflow and Dask containers at `/opt/airflow/data`.
 
 ## Architecture Diagram
 
 ![Architecture Diagram](docs/3phi_platform_architecture.png)
+
+## Writing DAGs
+
+DAGs live in `dags/` and their YAML configs in `dags/configs/`. The config filename must match the DAG filename (e.g. `my_pipeline.py` → `my_pipeline_config.yaml`).
+
+Every DAG follows the same structure:
+
+```python
+from airflow import DAG
+from airflow.providers.standard.operators.python import PythonOperator
+from datetime import datetime
+
+from threephi_framework import MyDataApp
+from utils import load_dag_config
+
+
+def run_my_pipeline():
+    with MyDataApp(config=load_dag_config(__file__)) as app:
+        app.run()
+
+
+default_args = {
+    "owner": "inilab",
+    "retries": 0,
+    "depends_on_past": False,
+    "email_on_failure": False,
+    "email_on_retry": False,
+}
+
+with DAG(
+    dag_id="my_pipeline",
+    description="What this pipeline does",
+    default_args=default_args,
+    start_date=datetime.now(),
+    catchup=False,
+    max_active_runs=1,
+) as dag:
+    PythonOperator(
+        task_id="run",
+        python_callable=run_my_pipeline,
+    )
+```
+
+Key rules:
+- `load_dag_config(__file__)` reads the matching YAML config — always call it **inside** the callable, never at module level. Airflow parses DAG files repeatedly; any code at module level runs on every parse cycle.
+- Use `max_active_runs=1` on every DAG to prevent concurrent runs and data inconsistencies.
+- Never access the database or object storage directly — use the abstractions provided by `threephi_framework`.
 
 ## Local Development
 
@@ -119,13 +165,49 @@ The custom dask image is built, so the source code is bundled directly in the im
 
 ## Environment Variables
 
-| Env Variable | Description, possible Values |
+All variables are set in `.env`. The file is not committed — copy the defaults from the table below to get started.
+
+**Database**
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `DB_TYPE` | Database backend | `POSTGRES` |
+| `DB_USER` | Database username | `postgres` |
+| `DB_PASSWORD` | Database password | `password` |
+| `DB_HOST` | Database host | `postgres` |
+| `DB_PORT` | Database port | `5432` |
+| `DB_NAME` | Database name | `3phi-db` |
+| `META_SCHEMA` | Schema for metadata tables | `meta` |
+| `LV_SCHEMA` | Schema for LV topology tables | `lv` |
+
+**MinIO (object storage)**
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `MINIO_ROOT_USER` | MinIO root username | `minioadmin` |
+| `MINIO_ROOT_PASSWORD` | MinIO root password | `minioadmin` |
+| `MINIO_BUCKET` | Default data bucket name | `3phi` |
+| `MINIO_HOST` | MinIO host and port (internal) | `minio:9000` |
+
+**Redis**
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `REDIS_PASSWORD` | Redis auth password (Celery broker) | `redispassword` |
+
+**Airflow**
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `AIRFLOW_ADMIN_USER` | Airflow UI admin username | `admin` |
+| `AIRFLOW_ADMIN_PASSWORD` | Airflow UI admin password | `admin` |
+| `AIRFLOW__API__SECRET_KEY` | Airflow API secret | — |
+| `AIRFLOW__CORE__FERNET_KEY` | Encryption key for secrets at rest | — |
+
+**AWS / S3 (mapped from MinIO)**
+
+| Variable | Description |
 | --- | --- |
-| DB_TYPE | POSTGRES, MS_SQL |
-| DB_USER | Your DB Username |
-| DB_PASSWORD | Your DB Password |
-| DB_HOST | Host the DB is running on |
-| DB_PORT | Port the DB is reachable on |
-| DB_NAME | Name of the DB |
-| META_SCHEMA | DB Schema where the meta data is stored, default: "meta" |
-| LV_SCHEMA | DB Schema where the LV Topology Data is stored, default: "lv" |
+| `AWS_ACCESS_KEY_ID` | S3-compatible access key (set to `MINIO_ROOT_USER`) |
+| `AWS_SECRET_ACCESS_KEY` | S3-compatible secret key (set to `MINIO_ROOT_PASSWORD`) |
+| `AWS_ENDPOINT_URL` | S3 endpoint URL (set to `http://${MINIO_HOST}`) |

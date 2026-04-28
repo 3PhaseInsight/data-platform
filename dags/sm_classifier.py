@@ -1,27 +1,23 @@
-import os
 import numpy as np
-import yaml
 import logging
-from time import time, sleep
+from time import time
 from typing import Union, List
 from threephi_framework import BaseDataApp
-from threephi_framework import DataExtractor
-from dask.distributed import get_client, Client
 from dask import delayed, compute
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime
 
 from dtu.sm_classifier import _meter_evaluation
+from utils import load_dag_config
+
 
 class SMClassifier(BaseDataApp):
-
     # Some variables for plotting
     ALLOWED_VARIABLES = {"V", "P14", "P23", "Q12", "Q34"}
     ALLOWED_PHASES = {"L1", "L2", "L3"}
 
     def __init__(self, config):
-
         # Set up the config settings from the parent class
         super().__init__(config)
 
@@ -30,29 +26,43 @@ class SMClassifier(BaseDataApp):
         # self.use_dask = config.get('Use_dask')
         # self.topology_controller = TopologyController(threephi_db.new_session)
         self.n_workers = config["Cluster_settings"]["n_workers"]
-        self.sm_ids = config.get('sm_ids', "All")
-        self.topology_processing_level = config.get('topology_processing_level', None)
-        self.overwrite_topology_info = config.get('overwrite_topology_info', False)
-        self.overwrite_timeseries_info = config.get('overwrite_timeseries_info', False)
-        self.data_dir_path = config.get('data_dir_path', "phase_measurements/raw")
-        self.results_dir = f'{self.data_extractor.s3_base}/sm_classifier'
-        self.max_rec_period = config.get('max_rec_period', None)
+        self.sm_ids = config.get("sm_ids", "All")
+        self.topology_processing_level = config.get("topology_processing_level", None)
+        self.overwrite_topology_info = config.get("overwrite_topology_info", False)
+        self.overwrite_timeseries_info = config.get("overwrite_timeseries_info", False)
+        self.data_dir_path = config.get("data_dir_path", "phase_measurements/raw")
+        self.results_dir = f"{self.data_extractor.s3_base}/sm_classifier"
+        self.max_rec_period = config.get("max_rec_period", None)
         # TODO: Check if these are needed
         # self.overwrite_existing_raw_sm_datasets = config.get('overwrite_existing_raw_sm_datasets', False)
         # self.save_results = config.get('save_results', False)
 
         # Variables for config
-        self.run_name = config.get('run_name', str(int(time())))
-        self.save_plots = config.get('save_plots', False)
-        self.plot_cfg = config.get('plot_cfg', None)
-        self.no_data_limit = config.get('no_data_limit', 0.025)  # Limit defining what counts as having "no data" # Fraction of total dataset of the longest recorded period of all SMs
-        self.good_data_limit = config.get('good_data_limit', 0.1)  # Limits defining what is "good", "medium", "bad"
-        self.medium_data_limit = config.get('medium_data_limit', 0.5)  # Limits defining what is "good", "medium", "bad"
-        self.v_lim = config.get('v_lim', 207)  # lower voltage limit for "plausible" measurements
-        self.offset_threshold = config.get('offset_threshold', 0.95)  # Fraction of total data which has to be below v_lim to be considered offset data
-        self.cons_period_threshold = config.get('cons_period_threshold', 4*24*2)  # Length of constant values from which on a period is considered constant period
-        self.frozen_range = config.get('frozen_range', 3*4 )   # Range of consecutive values that have to be identical to consider it as frozen
-    
+        self.run_name = config.get("run_name", str(int(time())))
+        self.save_plots = config.get("save_plots", False)
+        self.plot_cfg = config.get("plot_cfg", None)
+        self.no_data_limit = config.get(
+            "no_data_limit", 0.025
+        )  # Limit defining what counts as having "no data" # Fraction of total dataset of the longest recorded period of all SMs
+        self.good_data_limit = config.get(
+            "good_data_limit", 0.1
+        )  # Limits defining what is "good", "medium", "bad"
+        self.medium_data_limit = config.get(
+            "medium_data_limit", 0.5
+        )  # Limits defining what is "good", "medium", "bad"
+        self.v_lim = config.get(
+            "v_lim", 207
+        )  # lower voltage limit for "plausible" measurements
+        self.offset_threshold = config.get(
+            "offset_threshold", 0.95
+        )  # Fraction of total data which has to be below v_lim to be considered offset data
+        self.cons_period_threshold = config.get(
+            "cons_period_threshold", 4 * 24 * 2
+        )  # Length of constant values from which on a period is considered constant period
+        self.frozen_range = config.get(
+            "frozen_range", 3 * 4
+        )  # Range of consecutive values that have to be identical to consider it as frozen
+
         # TODO: Check if this can eliminate the plugin import issues
         # # Set up the cluster
         # if self.use_dask:
@@ -65,28 +75,49 @@ class SMClassifier(BaseDataApp):
     # Method to update config settings via the method arguments
     def _update_config(self, args):
         for arg_name, arg_value in args:
-            if arg_name != 'self' and arg_value is not None:
+            if arg_name != "self" and arg_value is not None:
                 setattr(self, arg_name, arg_value)
-    
+
     def _check_correct_setup(self):
-        
         # Check and store user settings
-        if not (isinstance(self.sm_ids, str) or (isinstance(self.sm_ids, list) and all(isinstance(i, str) for i in self.sm_ids))):
-            raise TypeError("sm_ids must be set 'All' or user-specified SM IDs as string or list of strings.")
+        if not (
+            isinstance(self.sm_ids, str)
+            or (
+                isinstance(self.sm_ids, list)
+                and all(isinstance(i, str) for i in self.sm_ids)
+            )
+        ):
+            raise TypeError(
+                "sm_ids must be set 'All' or user-specified SM IDs as string or list of strings."
+            )
 
         if not isinstance(self.run_name, str):
             raise TypeError("run_name must be a string.")
 
         if sum(self.plot_cfg["SM_selection"].values()) == 0:
-            raise ValueError("At least one 'SM_selection' option in the plot_cfg must be set to True.")
-        if not set(var.upper() for var in self.plot_cfg["Variable_selection"]).issubset(self.ALLOWED_VARIABLES):
-            raise ValueError(f"'Variable_selection' in the plot_cfg contains invalid entries. Allowed entries: {self.ALLOWED_VARIABLES}")
+            raise ValueError(
+                "At least one 'SM_selection' option in the plot_cfg must be set to True."
+            )
+        if not set(var.upper() for var in self.plot_cfg["Variable_selection"]).issubset(
+            self.ALLOWED_VARIABLES
+        ):
+            raise ValueError(
+                f"'Variable_selection' in the plot_cfg contains invalid entries. Allowed entries: {self.ALLOWED_VARIABLES}"
+            )
         if not set(self.plot_cfg["Variable_selection"]):
-            raise ValueError("At least one variable must be selected in 'Variable_selection' of the plot_cfg.")
-        if not set(var.upper() for var in self.plot_cfg["Phase_selection"]).issubset(self.ALLOWED_PHASES):
-            raise ValueError(f"'Phase_selection' in the plot_cfg contains invalid entries. Allowed entries: {self.ALLOWED_PHASES}")
+            raise ValueError(
+                "At least one variable must be selected in 'Variable_selection' of the plot_cfg."
+            )
+        if not set(var.upper() for var in self.plot_cfg["Phase_selection"]).issubset(
+            self.ALLOWED_PHASES
+        ):
+            raise ValueError(
+                f"'Phase_selection' in the plot_cfg contains invalid entries. Allowed entries: {self.ALLOWED_PHASES}"
+            )
         if not set(self.plot_cfg["Phase_selection"]):
-            raise ValueError("At least one phase must be selected in 'Phase_selection' of the plot_cfg.")
+            raise ValueError(
+                "At least one phase must be selected in 'Phase_selection' of the plot_cfg."
+            )
 
     def _export_cfg(self) -> dict:
         return {
@@ -100,10 +131,18 @@ class SMClassifier(BaseDataApp):
             "offset_threshold": self.offset_threshold,
             "cons_period_threshold": self.cons_period_threshold,
             "frozen_range": self.frozen_range,
-            "selected_variables": [var.upper() for var in self.plot_cfg["Variable_selection"]] if self.plot_cfg is not None else None,
-            "selected_phases": [var.lower() for var in self.plot_cfg["Phase_selection"]] if self.plot_cfg is not None else None,
-            "voltage_col": self.plot_cfg["voltage_col"] if self.plot_cfg is not None else None,
-            "phases":  ["l1", "l2", "l3"],
+            "selected_variables": [
+                var.upper() for var in self.plot_cfg["Variable_selection"]
+            ]
+            if self.plot_cfg is not None
+            else None,
+            "selected_phases": [var.lower() for var in self.plot_cfg["Phase_selection"]]
+            if self.plot_cfg is not None
+            else None,
+            "voltage_col": self.plot_cfg["voltage_col"]
+            if self.plot_cfg is not None
+            else None,
+            "phases": ["l1", "l2", "l3"],
             "variables": ["v", "p14", "p23", "q12", "q34"],
             "topology_processing_level": self.topology_processing_level,
             "overwrite_topology_info": self.overwrite_topology_info,
@@ -113,17 +152,19 @@ class SMClassifier(BaseDataApp):
             "results_dir": self.results_dir,
         }
 
-    def classify_smart_meters(self, sm_ids: Union[str, List[str]] = None,
-                              topology_processing_level: str = None,
-                              overwrite_existing_raw_sm_datasets: bool = None,
-                              overwrite_topology_info: bool = None,
-                              overwrite_timeseries_info: bool = None,
-                              run_name: str = None,
-                              save_results: bool = None,
-                              save_plots: bool = None,
-                              max_rec_period: int = None,
-                              plot_cfg: dict = None) -> tuple:
-
+    def classify_smart_meters(
+        self,
+        sm_ids: Union[str, List[str]] = None,
+        topology_processing_level: str = None,
+        overwrite_existing_raw_sm_datasets: bool = None,
+        overwrite_topology_info: bool = None,
+        overwrite_timeseries_info: bool = None,
+        run_name: str = None,
+        save_results: bool = None,
+        save_plots: bool = None,
+        max_rec_period: int = None,
+        plot_cfg: dict = None,
+    ) -> tuple:
         # Overwrite config settings with arguments if provided (allows to dynamically change data app run in pipeline)
         self._update_config(args=locals().items())
 
@@ -141,44 +182,41 @@ class SMClassifier(BaseDataApp):
 
         sm_id_chunks = np.array_split(sm_ids, min(len(sm_ids), self.n_workers))
         cfg = self._export_cfg()
-        delayed_tasks = [delayed(_meter_evaluation)(sm_ids = sm_ids_chunk, cfg = cfg) for sm_ids_chunk in sm_id_chunks]
+        delayed_tasks = [
+            delayed(_meter_evaluation)(sm_ids=sm_ids_chunk, cfg=cfg)
+            for sm_ids_chunk in sm_id_chunks
+        ]
         compute(*delayed_tasks)
 
-        logging.info(f"SM Classification completed.")
-
+        logging.info("SM Classification completed.")
 
     def run(self):
         self.classify_smart_meters(max_rec_period=None)
 
-config_file = "sm_classifier_config.yaml"
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs', config_file), 'r') as file:
-    pipeline_config = yaml.safe_load(file)
-    sm_classifier = SMClassifier(config=pipeline_config)
 
-    # Default DAG args
-    default_args = {
-        "owner": "inilab",
-        "retries": 0,
-        "depends_on_past": False,
-        "email_on_failure": False,
-        "email_on_retry": False,
-    }
+def run_sm_classifier():
+    with SMClassifier(config=load_dag_config(__file__)) as app:
+        app.run()
 
-    # Define DAG
-    with DAG(
-        dag_id="sm_classifier",
-        description="Classify Smart Meters based on topology and data quality",
-        default_args=default_args,
-        start_date=datetime.now(),
-        catchup=False,
-        max_active_runs=1,  # Prevent concurrent runs, protect from DB inconsistencies
-    ) as dag:
-        sm_classifier_task = PythonOperator(
-            task_id="Classify_Smart_Meters",
-            python_callable=sm_classifier.run,
-            doc_md="""
-            ## Classify Smart Meters DAG
-            """,
-        )
 
-        sm_classifier_task
+default_args = {
+    "owner": "inilab",
+    "retries": 0,
+    "depends_on_past": False,
+    "email_on_failure": False,
+    "email_on_retry": False,
+}
+
+with DAG(
+    dag_id="sm_classifier",
+    description="Classify Smart Meters based on topology and data quality",
+    default_args=default_args,
+    start_date=datetime.now(),
+    catchup=False,
+    max_active_runs=1,
+) as dag:
+    PythonOperator(
+        task_id="Classify_Smart_Meters",
+        python_callable=run_sm_classifier,
+        doc_md="## Classify Smart Meters DAG",
+    )

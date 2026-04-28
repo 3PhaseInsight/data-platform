@@ -11,3 +11,5 @@ data-platform-infrastructure/volumes
 pip.conf
 .DS_Store
 dev.env
+**__pycache__
+tmp
