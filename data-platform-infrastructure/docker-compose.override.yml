@@ -1,7 +1,9 @@
 services:
   postgres:
+    environment:
+      PGDATA: /var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$DB_USER -d $$DB_NAME -h 127.0.0.1" ]
+      test: ["CMD-SHELL", "pg_isready -U $$DB_USER -d $$DB_NAME -h 127.0.0.1"]
       interval: 2s
       timeout: 5s
       retries: 60
@@ -40,7 +42,7 @@ services:
       - local_sqitch:/sqitch
     networks:
       - platform_network
-    entrypoint: [ "bash", "-lc" ]
+    entrypoint: ["bash", "-lc"]
     command: >
       "ls && ./create-db-user.sh ${DB_HOST} ${DB_PORT} ${DB_USER} ${DB_PASSWORD} $${ROLE} $${ROLE_PW} ${DB_NAME}
       && ./sqitch-deploy.sh ${DB_HOST}:${DB_PORT} ${DB_USER} ${DB_PASSWORD} ${DB_NAME}"
