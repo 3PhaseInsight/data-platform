@@ -10,3 +10,4 @@
 05a_enum_node_type_delivery_point 2026-01-19T12:51:07Z Chris <chris@inilab.dk> # Treat delivery points as nodes
 05b_tables_topology_delivery_point_nodes 2026-01-19T13:32:45Z Chris <chris@inilab.dk> # Treat delivery points as nodes
 06_tables_run_results 2026-01-28T12:32:00Z Chris <chris@inilab.dk> # Extend run results table
+07_topology_version_processing_level 2026-05-01T00:00:00Z Christian Fotteler <christian.fotteler@gmail.com> # Add processing_level to topology_version
