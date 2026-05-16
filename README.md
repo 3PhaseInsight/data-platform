@@ -1,8 +1,9 @@
 # 3-Phase-Insight Data Platform
 
 ## Introduction
-This repo contains all necessary parts to spin up the 3-Phase-Insight (3Phi) Data Platform. It is structured in a way that 
-divides the individual components of the platform into three different parts:
+This repo contains all necessary parts to spin up the 3-Phase-Insight (3Phi) Data Platform, which builds upon the 
+functionality provided by [3phi-framework](https://github.com/3PhaseInsight/3phi-framework).
+It is structured in a way that divides the individual components of the platform into three different parts:
 
 - data-platform-infrastructure: contains everything that's related to the storage infrastructure, such as the Database and the MinIO Bucket Storage
 - data-platform-frontend: contains the user facing part of the platform, namely the Apache Airflow Webserver
