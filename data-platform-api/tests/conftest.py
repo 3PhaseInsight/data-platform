@@ -3,8 +3,6 @@ import os
 import pytest
 from sqlalchemy import text
 
-from threephi_framework.db.db import get_engine, new_session
-
 
 @pytest.fixture(scope="session")
 def engine():
@@ -12,11 +10,15 @@ def engine():
     missing = [k for k in required if not os.environ.get(k)]
     if missing:
         pytest.skip(f"DB env vars not set: {missing}")
+    from threephi_framework.db.db import get_engine
+
     return get_engine()
 
 
 @pytest.fixture
 def db_session(engine):
+    from threephi_framework.db.db import new_session
+
     session = new_session()
     try:
         yield session
