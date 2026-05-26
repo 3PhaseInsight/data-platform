@@ -40,6 +40,16 @@ Tests touch a real Postgres (the platform's dev DB or a disposable container)
 because `run_result` uses JSONB and Postgres-specific enums. If the DB env
 vars are not set, integration tests are skipped.
 
+## Regenerating the OpenAPI snapshot
+
+`tests/openapi.json` is checked in as a contract snapshot. When the API surface
+changes intentionally, regenerate it:
+
+```bash
+python -c "import json; from data_platform_api.main import create_app; \
+  print(json.dumps(create_app().openapi(), indent=2))" > tests/openapi.json
+```
+
 ## See also
 
 - DB migration: `../data-platform-infrastructure/sqitch/deploy/09_run_result_created_at.sql`
