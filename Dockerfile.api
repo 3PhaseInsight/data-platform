@@ -6,13 +6,6 @@ RUN apt-get update \
 
 WORKDIR /opt/api
 
-# Optional local framework wheel for dev (drop a wheel into tmp/ before build)
-COPY ./tmp/ /opt/3phi-framework/
-RUN if ls /opt/3phi-framework/*.whl >/dev/null 2>&1; then \
-        pip install --no-cache-dir /opt/3phi-framework/3phi_framework-*.whl \
-        && rm -rf /opt/3phi-framework ; \
-    fi
-
 COPY data-platform-api/ /opt/api/
 RUN pip install --no-cache-dir /opt/api
 

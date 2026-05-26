@@ -23,8 +23,10 @@ endif
 up: $(_WHEEL_DEP)
 	docker build -t dask:latest -f Dockerfile.dask .
 	docker build -t airflow:latest -f Dockerfile.airflow .
+	docker build -t data-platform-api:latest -f Dockerfile.api .
 	docker build -t dask:dev -f Dockerfile.dask.dev .
 	docker build -t airflow:dev -f Dockerfile.airflow.dev .
+	docker build -t data-platform-api:dev -f Dockerfile.api.dev .
 	docker compose --env-file $(ENV_FILE) -p $(PROJECT) $(COMPOSE_FILES) up -d --build
 
 down:

@@ -34,6 +34,9 @@ services:
     volumes:
       - local_data:/opt/airflow/data
 
+  data-platform-api:
+    image: data-platform-api:dev
+
 volumes:
   airflow_logs:
   dags_volume:
