@@ -2,8 +2,7 @@ import hmac
 import os
 from functools import lru_cache
 
-from fastapi import Depends, Header, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import Depends, Header, HTTPException, status
 
 
 @lru_cache(maxsize=1)
@@ -31,7 +30,3 @@ def require_api_key() -> object:
     def _dep(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:
         _check(x_api_key)
     return Depends(_dep)
-
-
-async def api_key_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content=exc.detail)

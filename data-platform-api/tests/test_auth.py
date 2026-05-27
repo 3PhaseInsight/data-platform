@@ -1,8 +1,10 @@
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from data_platform_api.auth import api_key_exception_handler, require_api_key
+from data_platform_api.auth import require_api_key
+from data_platform_api.errors import http_exception_handler
 
 
 @pytest.fixture
@@ -12,7 +14,7 @@ def client(monkeypatch):
     auth._load_keys.cache_clear()
 
     app = FastAPI()
-    app.add_exception_handler(HTTPException, api_key_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
     @app.get("/protected")
     def protected(_: None = require_api_key()):

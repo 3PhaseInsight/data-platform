@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from data_platform_api.auth import api_key_exception_handler
+from data_platform_api.errors import http_exception_handler
 from data_platform_api.routes import results
 
 
@@ -15,7 +16,7 @@ def create_app() -> FastAPI:
             "(e.g. `sm_classifier`). An alias layer is planned for a later version."
         ),
     )
-    app.add_exception_handler(HTTPException, api_key_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.include_router(results.router)
     return app
 
