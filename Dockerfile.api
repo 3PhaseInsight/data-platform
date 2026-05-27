@@ -6,6 +6,11 @@ RUN apt-get update \
 
 WORKDIR /opt/api
 
+# Install runtime deps first for better layer caching: this layer only
+# rebuilds when requirements-api.txt changes, not on every code edit.
+COPY data-platform-api/requirements-api.txt /opt/api/requirements-api.txt
+RUN pip install --no-cache-dir -r /opt/api/requirements-api.txt
+
 COPY data-platform-api/ /opt/api/
 RUN pip install --no-cache-dir /opt/api
 
