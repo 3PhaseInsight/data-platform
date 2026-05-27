@@ -20,6 +20,22 @@ is planned for a later version; the path segment is already named generically
 
 ## Running locally
 
+When the service runs inside the data-platform docker-compose stack, its
+env vars come from the top-level `.env` file (`docker compose --env-file
+.env ...`). Add these to `.env` to configure the API container:
+
+```
+# data-platform-api
+API_KEYS=dev-key            # comma-separated list of accepted X-API-Key values
+API_PORT=8000               # host port the API binds to (container port stays 8000)
+```
+
+Note: `dev.env` is read by the Makefile and only feeds `FRAMEWORK_PATH` for
+the local-wheel build. It is not propagated to compose, so `API_KEYS` does
+not belong there.
+
+To run uvicorn directly (without docker) for quick iteration:
+
 ```bash
 DB_USER=... DB_PASSWORD=... DB_HOST=... DB_PORT=... DB_NAME=... \
   API_KEYS=dev-key \
