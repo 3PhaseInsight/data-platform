@@ -1,23 +1,18 @@
-Name: sm_classifier_config # Name of the config file
-Comment: This is a config file for exemplifying the run of the SM classifier # A comment to describe the run
+# Config for the sm_classifier DAG, consumed by threephi_framework.SMClassifier.
+# See the SMClassifier docstring for the full list of supported parameters.
+
 dask:
   host: dask-scheduler
   port: "8786"
-Cluster_settings:
-  n_workers: 4 # Should not exceed the number of cores on your machine
-  # memory_limit: "4GB" # Memory limit is PER WORKER
-  # # dashboard_address: ':8786'  # Open dask dashboard via http://localhost:8786/
+  n_workers: 4 # Used to chunk meters across workers; should not exceed the number of Dask workers
 
-data_dir_path: phase_measurements/raw # Path to the directory containing phase measurement data
-sm_ids: ["17", "40", "87", "116"] # List of SM IDs to apply the SMClassifier to
-topology_processing_level: "raw" # Level of processing of topology files. Can be raw, cleaned, or cleaned_and_corrected
-overwrite_existing_raw_sm_datasets: False # If True, it will extract from complete timeseries data instead of using existing raw SM datasets (not recommended)
-overwrite_topology_info: False # If True, it will overwrite any existing SM-topology mappings (intensive)
-overwrite_timeseries_info: False # If True, it will overwrite a possibly existing Timeseries_info.json (intensive)
-run_name: "INILAB_plots" # Name of the folder under which results are stored in Results/
-save_results: True # Whether to store results or just return them
-save_plots: True # Whether to create and save plots of the SM timeseries data (intensive)
-plot_cfg: { 
+use_dask: true # Distribute meter evaluation across the Dask cluster
+
+data_dir_path: phase_measurements/raw # Object-storage path of the raw timeseries dataset
+sm_ids: ["17", "40", "87", "116"] # "All" to classify every meter with data, or a list of SM ID strings
+
+save_plots: true # Whether to create and save plots of the SM timeseries data (intensive)
+plot_cfg: {
       "SM_selection": { # allows to define which SM to plot timeseries data for.
       "All_(with_dataset_containing_data)": True, # True or False
       "With_only_good_data_quality": True, # True or False
@@ -28,27 +23,25 @@ plot_cfg: {
       "With_on_off_switch": True,
       },
 
-      "Variable_selection": 
-      ["V", "P14", "P23", "Q12", "Q34"], 
-      
-      "Phase_selection": 
+      "Variable_selection":
+      ["V", "P14", "P23", "Q12", "Q34"],
+
+      "Phase_selection":
       ["L1", "L2", "L3"],
-      
-      "voltage_col": 
-      "voltage_",
-      
+
       "Plotting_format": {
       "plot_format": "svg",
       "plot_dpi": 300,
       "plot_transparent": false,
       "overwrite_plots": true
-      }} # True or False # Which variables to plot "V", "P14", "P23", "Q12" and/or "Q34" # Which phases to plot. "L1", "L2" and/or "L3"
+      }} # Which variables ("V", "P14", "P23", "Q12", "Q34") and phases ("L1", "L2", "L3") to plot
 
-no_data_limit: 0.025 # Limit defining what counts as having "no data" # Fraction of total dataset of the longest recorded period of all SMs
+# Detection thresholds (see threephi_framework.dtu.sm_classifier.meter_evaluation)
+no_data_limit: 0.025 # Limit defining what counts as having "no data" (fraction of the longest recorded period)
 good_data_limit: 0.1 # Limits defining what is "good", "medium", "bad"
 medium_data_limit: 0.5 # Limits defining what is "good", "medium", "bad"
 v_lim: 207 # lower voltage limit for "plausible" measurements
-offset_threshold: 0.95 # Fraction of total data which has to be below v_lim to be considered offset data
-cons_period_threshold: 192 # Length of constant values from which on a period is considered constant period
-frozen_range: 12 # Range of consecutive values that have to be identical to consider it as frozen
-max_rec_period: 1000 # Maximum recording period (in 15 minutes) to consider the SM data valid
+offset_threshold: 0.95 # Fraction of data below v_lim for a phase to be considered offset
+cons_period_threshold: 192 # Length of constant values from which on a period is considered constant
+frozen_range: 12 # Number of consecutive identical values to consider the signal frozen
+max_rec_period: 1000 # Maximum recording period (in 15-minute steps); null = derive from data
