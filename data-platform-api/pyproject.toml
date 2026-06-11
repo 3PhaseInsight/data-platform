@@ -38,6 +38,9 @@ extend-exclude = ["dist", "**/__pycache__"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "UP", "B", "SIM", "I"]
+# B008 flags `Depends(...)` in argument defaults, which is the standard FastAPI
+# dependency-injection idiom.
+ignore = ["B008"]
 
 [tool.ruff.format]
 quote-style = "double"

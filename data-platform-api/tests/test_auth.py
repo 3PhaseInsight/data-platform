@@ -11,6 +11,7 @@ from data_platform_api.errors import http_exception_handler
 def client(monkeypatch):
     monkeypatch.setenv("API_KEYS", "key-one,key-two")
     from data_platform_api import auth
+
     auth._load_keys.cache_clear()
 
     app = FastAPI()

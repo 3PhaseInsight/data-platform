@@ -23,11 +23,10 @@ def get_latest_results(
     meter_id: int = Path(..., description="meta.meter.id"),
     session: Session = Depends(get_session),
 ) -> LatestResultsResponse:
-    from threephi_framework.resources.meta.run_result import RunResultResource  # lazy: avoids heavy framework init at import time
+    # lazy import: avoids heavy framework init at module import time
+    from threephi_framework.resources.meta.run_result import RunResultResource
 
-    rows = RunResultResource(session).get_latest_for_meter(
-        dag_id=data_app, meter_id=meter_id
-    )
+    rows = RunResultResource(session).get_latest_for_meter(dag_id=data_app, meter_id=meter_id)
 
     if not rows:
         raise HTTPException(

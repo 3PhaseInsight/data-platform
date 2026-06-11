@@ -11,6 +11,7 @@ from data_platform_api.main import create_app
 def app(monkeypatch):
     monkeypatch.setenv("API_KEYS", "test-key")
     from data_platform_api import auth
+
     auth._load_keys.cache_clear()
     return create_app()
 
@@ -48,16 +49,46 @@ def test_returns_latest_run_rows_for_meter(client, headers, clean_run_result):
     older_run = "scheduled__2024-05-12T10:00:00+00:00"
     newer_run = "scheduled__2024-05-13T10:00:00+00:00"
 
-    clean_run_result.add_all([
-        _make_row(dag_id="sm_classifier", run_id=older_run, meter_id=42, phase="L1",
-                  label_value="medium", confidence=0.5, created_at=now - timedelta(days=1)),
-        _make_row(dag_id="sm_classifier", run_id=newer_run, meter_id=42, phase="L1",
-                  label_value="good", confidence=0.9, created_at=now),
-        _make_row(dag_id="sm_classifier", run_id=newer_run, meter_id=42, phase="L2",
-                  label_value="good", confidence=0.85, created_at=now),
-        _make_row(dag_id="sm_classifier", run_id=newer_run, meter_id=99, phase="L1",
-                  label_value="bad", confidence=0.1, created_at=now),
-    ])
+    clean_run_result.add_all(
+        [
+            _make_row(
+                dag_id="sm_classifier",
+                run_id=older_run,
+                meter_id=42,
+                phase="L1",
+                label_value="medium",
+                confidence=0.5,
+                created_at=now - timedelta(days=1),
+            ),
+            _make_row(
+                dag_id="sm_classifier",
+                run_id=newer_run,
+                meter_id=42,
+                phase="L1",
+                label_value="good",
+                confidence=0.9,
+                created_at=now,
+            ),
+            _make_row(
+                dag_id="sm_classifier",
+                run_id=newer_run,
+                meter_id=42,
+                phase="L2",
+                label_value="good",
+                confidence=0.85,
+                created_at=now,
+            ),
+            _make_row(
+                dag_id="sm_classifier",
+                run_id=newer_run,
+                meter_id=99,
+                phase="L1",
+                label_value="bad",
+                confidence=0.1,
+                created_at=now,
+            ),
+        ]
+    )
     clean_run_result.commit()
 
     r = client.get("/v1/data-apps/sm_classifier/meters/42/results/latest", headers=headers)
