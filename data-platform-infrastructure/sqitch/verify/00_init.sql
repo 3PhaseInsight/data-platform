@@ -13,16 +13,12 @@ WHERE n.nspname = :'meta_schema' AND p.proname = 'set_updated_at';
 
 -- Tables exist
 SELECT 1 FROM information_schema.tables WHERE table_schema=:'meta_schema' AND table_name='file_index';
-SELECT 1 FROM information_schema.tables WHERE table_schema=:'meta_schema' AND table_name='hourly_measurements';
 SELECT 1 FROM information_schema.tables WHERE table_schema=:'meta_schema' AND table_name='ingest_batch';
 SELECT 1 FROM information_schema.tables WHERE table_schema=:'meta_schema' AND table_name='meter';
-SELECT 1 FROM information_schema.tables WHERE table_schema=:'meta_schema' AND table_name='meter_data';
 SELECT 1 FROM information_schema.tables WHERE table_schema=:'meta_schema' AND table_name='workflow_states';
 
 -- Columns of interest exist
 SELECT 1 FROM information_schema.columns WHERE table_schema=:'meta_schema' AND table_name='file_index' AND column_name='batch_id';
-SELECT 1 FROM information_schema.columns WHERE table_schema=:'meta_schema' AND table_name='hourly_measurements' AND column_name='timestamp';
-SELECT 1 FROM information_schema.columns WHERE table_schema=:'meta_schema' AND table_name='meter_data' AND column_name='timestamp';
 
 -- Trigger on workflow_states (from set_updated_at)
 SELECT 1

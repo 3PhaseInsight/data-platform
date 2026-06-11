@@ -27,6 +27,8 @@ def _check(x_api_key: str | None) -> None:
 
 def require_api_key() -> object:
     """FastAPI dependency factory. Use as: `Depends(require_api_key())` or `_: None = require_api_key()`."""
+
     def _dep(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:
         _check(x_api_key)
+
     return Depends(_dep)

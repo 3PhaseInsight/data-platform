@@ -1,1 +1,1 @@
-python 3.13.1
+python 3.13.1 # dev tooling only — the platform images run Python 3.12

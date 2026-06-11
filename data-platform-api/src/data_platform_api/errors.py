@@ -3,9 +3,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
-async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Return all HTTPException bodies in a flat `{"error": ...}` envelope.
 
     Application code raises HTTPException with `detail={"error": "..."}` so the
