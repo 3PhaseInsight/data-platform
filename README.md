@@ -3,10 +3,11 @@
 ## Introduction
 This repo contains all necessary parts to spin up the 3-Phase-Insight (3Phi) Data Platform, which builds upon the 
 functionality provided by [3phi-framework](https://github.com/3PhaseInsight/3phi-framework).
-It is structured in a way that divides the individual components of the platform into three different parts:
+It is structured in a way that divides the individual components of the platform into four different parts:
 
 - data-platform-infrastructure: contains everything that's related to the storage infrastructure, such as the Database and the MinIO Bucket Storage
 - data-platform-frontend: contains the user facing part of the platform, namely the Apache Airflow Webserver
+- data-platform-api: a small customer-facing FastAPI service for querying Data App results (see [data-platform-api/README.md](data-platform-api/README.md))
 - "the rest": contains the backend part of the platform, which consists of the Apache Airflow Scheduler & Worker as well as the Dask Cluster
 
 ### Apache Airflow
@@ -143,10 +144,12 @@ make up
 ```
 This will create the Docker containers (database, dask cluster and airflow) locally on your machine. A user will be created named threephi_db_user. This user will be used by the other services when they interact with the database. At last, the database will be initialized with the necessary schemas & tables.
 
-#### 6. Create MinIO buckets
-Open the MinIO Console at http://localhost:19001 (or in Docker Desktop, click the minio container’s Console port). Sign in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env` (defaults: `minioadmin` / `minioadmin`). Create these buckets:
+#### 6. MinIO buckets
+In local development the required buckets are created automatically by the `minio_createbuckets` service (see `data-platform-infrastructure/docker-compose.override.yml`):
 - `3phi` — ingested timeseries parquet files
 - `airflow-logs` — Airflow task logs
+
+To inspect them, open the MinIO Console at http://localhost:19001 (or in Docker Desktop, click the minio container’s Console port) and sign in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `.env` (defaults: `minioadmin` / `minioadmin`). In a production deployment the buckets must be created manually.
 
 #### 7. Access the Airflow UI
 Open http://localhost:8080 (or click `8080:8080` in Docker Desktop for the Airflow webserver). Retrieve the admin password from the webserver logs at Docker Desktop → Airflow-webserver → Logs. Look for:
@@ -161,12 +164,31 @@ First run: reserialize DAGs so they appear by running `airflow dags reserialize`
 The custom airflow image is built so the defined dags and the source code are available to the Airflow containers.
 
 ### Dask
-The custom dask image is built, so the source code is bundled directly in the image.
+The custom dask image is built so all Python dependencies (including `threephi_framework`) are available to the Dask workers.
+
+### API
+The data-platform-api image bundles the FastAPI service from [data-platform-api](data-platform-api/).
+
+### Building the images
+
+`make up` builds everything automatically. To build an individual image manually:
+
+```bash
+docker build -t airflow:latest -f Dockerfile.airflow .
+docker build -t dask:latest -f Dockerfile.dask .
+docker build -t data-platform-api:latest -f Dockerfile.api .
+```
+
+The `*.dev` Dockerfiles layer a locally built `3phi-framework` wheel on top of the corresponding base image; the Makefile builds that wheel into `./tmp/` when `FRAMEWORK_PATH` is set in `dev.env` (see Local Development above).
+
+The Dockerfiles reference an optional BuildKit secret (`pip_conf`) that was used to resolve `3phi-framework` from a private package index. Since the framework is published on public PyPI, no secret is needed — the builds work as-is.
+
+There is currently no CI pipeline; images are built locally (or on the target host) with the commands above and tagged/pushed to whatever registry `CI_REGISTRY_IMAGE`/`IMAGE_TAG` in `.env` point at.
 
 
 ## Environment Variables
 
-All variables are set in `.env`. The file is not committed — copy the defaults from the table below to get started.
+All variables are set in `.env`. The committed `.env` contains local-development defaults only — every secret in it must be overridden for a real deployment.
 
 **Database**
 
