@@ -234,3 +234,53 @@ All variables are set in `.env`. The committed `.env` contains local-development
 | `AWS_ACCESS_KEY_ID` | S3-compatible access key (set to `MINIO_ROOT_USER`) |
 | `AWS_SECRET_ACCESS_KEY` | S3-compatible secret key (set to `MINIO_ROOT_PASSWORD`) |
 | `AWS_ENDPOINT_URL` | S3 endpoint URL (set to `http://${MINIO_HOST}`) |
+
+## Using Azure Blob Storage instead of MinIO
+
+The framework abstracts object storage behind `BaseConnector` and ships an `AzureBlobConnector` alongside the default S3/MinIO one (see the [3phi-framework README](https://github.com/3PhaseInsight/3phi-framework#object-storage-connectors) for how backend resolution works). The platform runs against MinIO by default; to run the data apps against Azure Blob Storage instead:
+
+#### 1. Provide Azure credentials
+
+Add to `.env`:
+
+```
+AZURE_STORAGE_ACCOUNT_NAME=mystorageaccount
+AZURE_STORAGE_CONTAINER_NAME=3phi
+AZURE_STORAGE_ACCOUNT_KEY=...   # optional — omit to use DefaultAzureCredential
+                                # (managed identity, service principal, or `az login`)
+```
+
+Name the container `3phi` to keep the stored layout identical to the S3 default (the S3 connector's bucket name is fixed to `3phi`).
+
+#### 2. Pass the variables into the containers
+
+The compose files only forward the `S3_*`/`AWS_*` variables by default. Add the Azure variables to the `environment:` blocks of every service that runs data apps — `airflow-scheduler`, `airflow-worker`, `dask-scheduler`, and `dask-worker`:
+
+```yaml
+      - AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}
+      - AZURE_STORAGE_CONTAINER_NAME=${AZURE_STORAGE_CONTAINER_NAME}
+      - AZURE_STORAGE_ACCOUNT_KEY=${AZURE_STORAGE_ACCOUNT_KEY}
+```
+
+#### 3. Select the Azure backend
+
+Either per DAG, in its config YAML:
+
+```yaml
+object_storage_backend: azure
+```
+
+or for the whole deployment, by additionally exporting `OBJECT_STORAGE_BACKEND=azure` into the same containers. An explicit `connector=AzureBlobConnector(...)` argument on a data app always wins over both.
+
+#### 4. Adjust explicit storage URIs in DAG configs
+
+Config values that contain full object-storage URIs are backend-specific and must be rewritten for Azure, e.g. in `stat_labeler_config.yaml`:
+
+```yaml
+results_dir: az://3phi/stat_labeler
+weather_file: az://3phi/stat_labeler/data/weather_data.csv
+```
+
+Notes:
+- With the Azure backend selected, the `S3_*` variables are not required by the data apps; the MinIO service can be dropped from the stack if nothing else uses it (Airflow remote task logging does — see `remote_base_log_folder` in `airflow.cfg`).
+- Functions distributed to Dask workers reconstruct the connector from the backend name, so the selection applies consistently across the cluster as long as the workers have the Azure variables from step 2.
