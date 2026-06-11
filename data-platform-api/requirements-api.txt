@@ -1,0 +1,31 @@
+# Runtime dependencies for the data-platform-api service.
+#
+# Split into two groups:
+#   1. The API's own direct deps. These are also declared in pyproject.toml
+#      so `pip install -e .[dev]` works for local development without docker.
+#   2. Transitive deps that 3phi-framework loads eagerly via its __init__.py
+#      (data_apps/*, controllers/topology, object_storage/*). The API itself
+#      does not use these, but `import threephi_framework` triggers them.
+#      If the framework moves those imports behind lazy loading upstream,
+#      this second group can shrink.
+
+# (1) API service deps
+3phi-framework==0.3.0
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+SQLAlchemy>=2
+psycopg2-binary
+
+# (2) 3phi-framework eager-import deps
+dask==2025.5.1
+distributed==2025.5.1
+fsspec
+s3fs
+adlfs
+pandas
+numpy
+pyarrow
+matplotlib
+tqdm
+xxhash

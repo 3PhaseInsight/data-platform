@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-platform-api"
+version = "0.1.0"
+description = "Customer-facing HTTP API for the 3PhaseInsight data platform"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "3phi-framework==0.3.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "psycopg2-binary",
+    "SQLAlchemy>=2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["dist", "**/__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "UP", "B", "SIM", "I"]
+
+[tool.ruff.format]
+quote-style = "double"

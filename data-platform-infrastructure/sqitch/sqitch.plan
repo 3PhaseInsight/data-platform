@@ -12,3 +12,4 @@
 06_tables_run_results 2026-01-28T12:32:00Z Chris <chris@inilab.dk> # Extend run results table
 07_topology_version_processing_level 2026-05-01T00:00:00Z Chris <chris@inilab.dk> # Add processing_level to topology_version
 08_grants_lv_schema 2026-05-13T00:00:00Z Chris <chris@inilab.dk> # Grant lv schema privileges to threephi_db_user
+09_run_result_created_at 2026-05-21T00:00:00Z Chris <chris@inilab.dk> # Add created_at to run_result for API layer latest-result lookups

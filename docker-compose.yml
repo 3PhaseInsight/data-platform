@@ -160,6 +160,26 @@ services:
     mem_limit: 2G
     cpus: 1.0
 
+  data-platform-api:
+    image: ${CI_REGISTRY_IMAGE}/data-platform-api:${IMAGE_TAG:-latest}
+    container_name: data-platform-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - API_KEYS=${API_KEYS}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - platform_network
+    mem_limit: 256M
+    cpus: 0.25
+
 volumes:
   csv_data:
     driver: local
