@@ -100,6 +100,7 @@ Runtime config comes from `.env`. The committed `.env` holds local-dev defaults 
 | `AIRFLOW__API__SECRET_KEY` | Airflow API auth |
 | `REDIS_PASSWORD` | Celery broker auth |
 | `API_KEYS` / `API_PORT` | data-platform-api auth keys and host port |
+| `OBJECT_STORAGE_BACKEND` | Optional: object-storage backend for data apps ("s3" default, or "azure"); can also be set per-DAG via `object_storage_backend` in the config YAML |
 
 ## Testing & Validation
 
