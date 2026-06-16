@@ -1,7 +1,7 @@
 # NOTE: 0.4.0 must be tagged/released from the 3phi-framework cleanup branch before
 # this resolves from PyPI (the DAGs import StatLabeler, which 0.3.0 does not export).
 # Until then, use the local-wheel dev flow (dev.env + FRAMEWORK_PATH).
-3phi-framework==0.4.0
+# 3phi-framework==0.4.0
 s3fs
 pyarrow
 tqdm

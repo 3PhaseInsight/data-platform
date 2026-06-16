@@ -1,0 +1,78 @@
+Name: example
+Comment: This is a config file for exemplifying the run of phase connector
+
+use_dask: True # Whether to use Dask for parallel processing. If False, will run sequentially.
+dask:
+  host: dask-scheduler
+  port: "8786"
+  n_workers: 4 # Should not exceed the number of cores on your machine
+  memory_limit: "4GB"
+
+# Phase connector DAG settings:
+data_dir_path: phase_measurements # Path to the directory containing phase measurement data
+run_name: "example_run" # Name of the folder under which results are stored in Results/
+topology_processing_level: "raw" # Level of processing of topology files. Can be raw, cleaned, or cleaned_and_corrected
+save_results: True # Whether to store results or just return them
+sm_id: "121184"
+profile_processing_level: "raw"
+
+# External data
+temp_data_path: "/data/temp_data.csv"
+spot_data_path: "/data/spot_data.csv"
+ref_data_path: "/data/ref_data.csv"
+
+# PhaseConnector data app settings
+PhaseConnector:
+  save_plots: False
+  # Appliance to evaluate: hp | ev | pv
+  appliance_type: "hp"
+  label_columns:
+    hp: "predicted_hp"
+    ev: "predicted_ev_phase"
+    pv: "predicted_pv"
+
+  # Scoring weights — must sum to 100
+  weights:
+    C1_feeder_balance: 40
+    C2_type_concentration: 30
+    C3_household_balance: 30
+
+# StatLabeler settings
+StatLabeler:
+  overwrite_existing_results: False
+  process_only_sm_with_hp: False
+  save_plots: False
+  save_meta_results: True
+
+  thresholds:
+    "max_bins": 12
+    "min_bins": 1
+    "confidence_threshold": 0.8
+
+  results_dir: "s3://3phi/stat_labeler"
+  add_meta_results: True
+  include_mae: True
+
+# Electric Heating Identifier settings
+
+EH_identifier:
+  EH_threshold: 0.95
+  save_plots: False
+  overwrite_existing_results: False
+  topology_processing_level: "raw"
+  save_results: False
+  results_dir": "s3://3phi/electric_heating_identifier"
+
+  # ML_algorithm can be set to either "label_propagation", "logistic_regression", or "hierarchical_clustering"
+  ML_algorithm: "label_propagation"
+
+  # Label propagation specific config
+  # Kernal: Can be "knn" or "rbf"
+  # Label_threshold: Threshold for label propagation step
+  # Gamma parameter for label propagation
+  # alpha: Alpha parameter for label spreading
+  label_propagation:
+    kernel: "knn"
+    label_threshold: 0.5
+    gamma: 10
+    alpha: 0.2

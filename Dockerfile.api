@@ -12,7 +12,7 @@ COPY data-platform-api/requirements-api.txt /opt/api/requirements-api.txt
 RUN pip install --no-cache-dir -r /opt/api/requirements-api.txt
 
 COPY data-platform-api/ /opt/api/
-RUN pip install --no-cache-dir /opt/api
+RUN pip install --no-cache-dir --no-deps /opt/api
 
 EXPOSE 8000
 

@@ -38,6 +38,17 @@ ps:
 logs:
 	docker compose --env-file $(ENV_FILE) -p $(PROJECT) $(COMPOSE_FILES) logs -f
 
+
+clean-cache:
+	docker builder prune -af
+	docker image prune -f
+
+rebuild: $(_WHEEL_DEP)
+	docker build -t dask:dev -f Dockerfile.dask.dev .
+	docker build -t airflow:dev -f Dockerfile.airflow.dev .
+	docker compose --env-file $(ENV_FILE) -p $(PROJECT) $(COMPOSE_FILES) up -d --build airflow-worker airflow-scheduler dask-worker dask-scheduler
+	docker image prune -f
+	
 $(FRAMEWORK_WHEEL): $(FRAMEWORK_SRC)
 	rm -f ./tmp/*
 	python -m build $(FRAMEWORK_PATH) --outdir ./tmp/
