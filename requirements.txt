@@ -29,3 +29,8 @@ adlfs
 matplotlib
 scipy
 statsmodels
+
+
+# streamlit app (run_streamlit.sh)
+streamlit
+altair
