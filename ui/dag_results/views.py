@@ -50,19 +50,33 @@ def render_dag_results():
         unsafe_allow_html=True,
     )
 
+    # --- Navigation ---
     if st.session_state.page == "lookup":
         _render_lookup()
+
     elif st.session_state.page == "status":
-        view_capacity, go_to_assessment = render_status_view(
-            st.session_state.meter_id, st.session_state.data
+        selected, back = render_status_view(
+            st.session_state.meter_id,
+            st.session_state.data,
         )
-        if go_to_assessment:
-            st.session_state.page = "assessment"
+
+        if back:
+            st.session_state.page = "lookup"
             st.rerun()
-        if view_capacity:
-            st.info("Capacity details view not implemented yet.")
+
+        if selected:
+            st.session_state.page = "assessment"
+            st.session_state.assessment_type = selected
+            st.rerun()
+
+
+
     elif st.session_state.page == "assessment":
-        back = render_assessment_view(st.session_state.meter_id, st.session_state.data)
+        back = render_assessment_view(
+            st.session_state.meter_id,
+            st.session_state.data
+        )
+
         if back:
             st.session_state.page = "status"
             st.rerun()
@@ -81,8 +95,10 @@ def _render_lookup():
 
     with st.container(key="input_card"):
         col_input, col_button = st.columns([3, 1])
+
         with col_input:
             meter_id = st.text_input("", placeholder="Enter meter ID")
+
         with col_button:
             submit = st.button("Lookup")
 
@@ -93,8 +109,11 @@ def _render_lookup():
                 st.session_state.data = data
                 st.session_state.meter_id = meter_id
                 st.session_state.page = "status"
+
                 st.rerun()
+
             except Exception as e:
                 st.error(f"Error: {e}")
+
     elif submit:
         st.warning("Enter a meter ID")

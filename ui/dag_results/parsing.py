@@ -12,16 +12,23 @@ def _results(data: dict) -> list[dict]:
     return data.get("results", []) or []
 
 
-def get_phase_recommendation(data: dict) -> Optional[dict]:
-    """
-    Returns the single result item where label_type == 'Phase Connector
-    Recommendation'. This is the item that carries recommended_phase,
-    appliance_type, scores per phase, and ranking.
-    """
+
+def get_phase_recommendation(data: dict):
+    best_item = None
+
     for item in _results(data):
         if item.get("label_type") == "Phase Connector Recommendation":
-            return item
-    return None
+            details = item.get("details") or {}
+
+            # pick the one with richest data
+            if "recommended_phase" in details:
+                return item
+
+            # fallback if none found
+            best_item = best_item or item
+
+    return best_item
+
 
 
 def get_electric_heating_by_phase(data: dict) -> dict[str, dict]:
@@ -66,15 +73,10 @@ def get_maer_by_phase(data: dict) -> dict[str, float]:
     return out
 
 
-def get_scores(rec_item: dict) -> dict:
-    """
-    recommended_phase, scores, ranking, feeder_id, appliance_type all live
-    inside details on the 'Phase Connector Recommendation' item.
-    """
+def get_scores(rec_item: dict):
     if not rec_item:
         return {}
     return (rec_item.get("details") or {}).get("scores", {})
-
 
 def get_imbalance_level(scores: dict) -> str:
     """
@@ -94,25 +96,22 @@ def get_imbalance_level(scores: dict) -> str:
     else:
         return "High"
 
-
 def get_recommended_actions(rec_item: dict) -> list[str]:
-    """
-    Builds a short, human-readable action list from the recommendation
-    item. Replace/extend this with real business logic as needed -- this
-    is intentionally simple placeholder text generation.
-    """
     if not rec_item:
         return []
 
     details = rec_item.get("details") or {}
+
     phase = details.get("recommended_phase", "the recommended phase")
-    appliance = details.get("appliance_type", "the new appliance")
+    appliance = details.get("appliance_type", "the appliance")
     feeder = details.get("feeder_id")
 
     actions = [
         f"Connect {appliance.upper()} to phase {phase}.",
         "Verify the recommendation on-site before final connection.",
     ]
+
     if feeder:
-        actions.append(f"Reference feeder ID {feeder} when scheduling work.")
+        actions.append(f"Reference feeder ID {feeder}.")
+
     return actions
