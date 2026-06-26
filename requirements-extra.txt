@@ -8,3 +8,6 @@ statsmodels
 # SM_classifier
 matplotlib==3.10.7
 Pillow==12.0.0
+
+# Electric Heating Identifier
+scikit-learn
